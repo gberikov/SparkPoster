@@ -38,6 +38,62 @@ internal static class SparkPostEventReader
         return events;
     }
 
+    /// <summary>
+    /// Reads the flat array returned by the Events API. There is no <c>msys</c> wrapper there,
+    /// so the category is derived from the event type instead.
+    /// </summary>
+    public static IReadOnlyList<SparkPostEvent> ReadFlat(JsonNode? results)
+    {
+        if (results is not JsonArray items)
+        {
+            return [];
+        }
+
+        var events = new List<SparkPostEvent>(items.Count);
+
+        foreach (var item in items)
+        {
+            if (item is not JsonObject body)
+            {
+                continue;
+            }
+
+            events.Add(ReadByType(body));
+        }
+
+        return events;
+    }
+
+    private static SparkPostEvent ReadByType(JsonObject body)
+    {
+        var type = (string?)body["type"];
+
+        return type switch
+        {
+            "click" or "open" or "initial_open"
+                or "amp_click" or "amp_open" or "amp_initial_open"
+                => Deserialize(body, SparkPostJsonContext.Default.TrackEvent),
+            "generation_failure" or "generation_rejection"
+                => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent),
+            "list_unsubscribe" or "link_unsubscribe"
+                => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent),
+            "relay_injection" or "relay_rejection" or "relay_delivery"
+                or "relay_tempfail" or "relay_permfail"
+                => Deserialize(body, SparkPostJsonContext.Default.RelayEvent),
+            "bounce" or "delivery" or "injection" or "delay" or "out_of_band"
+                or "policy_rejection" or "spam_complaint"
+                => Deserialize(body, SparkPostJsonContext.Default.MessageEvent),
+            // An unfamiliar type is reported as unknown rather than forced into MessageEvent:
+            // the caller can still read everything through Raw and Extra.
+            _ => new UnknownSparkPostEvent
+            {
+                Category = string.Empty,
+                Type = type,
+                Raw = body.DeepClone(),
+            },
+        };
+    }
+
     private static SparkPostEvent? ReadOne(JsonNode? item)
     {
         if (item is not JsonObject wrapper)

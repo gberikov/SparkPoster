@@ -34,10 +34,32 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
         });
     }
 
+    /// <summary>
+    /// Answers with the given bodies in order, so paging can be exercised. The last body is
+    /// repeated if more requests arrive than there are bodies.
+    /// </summary>
+    public static FakeHttpMessageHandler ReturningSequence(params string[] bodies)
+    {
+        var index = 0;
+
+        return new FakeHttpMessageHandler(_ =>
+        {
+            var body = bodies[Math.Min(index++, bodies.Length - 1)];
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
+            };
+        });
+    }
+
+    public int RequestCount { get; private set; }
+
     public HttpClient CreateClient() => new(this, disposeHandler: false);
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        RequestCount++;
         LastRequest = request;
         LastBody = request.Content is null
             ? null
