@@ -97,11 +97,15 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
 
 ## 4. Порядок работ
 
-1. **Каркас**: `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig`, `LICENSE`,
-   три проекта в `src/`, два в `tests/`, тег `0.1.0` для MinVer.
+1. **Каркас**: `global.json`, `Directory.Build.props`, `Directory.Packages.props`,
+   `src/Directory.Build.props`, `.editorconfig`, `LICENSE`, три проекта в `src/`.
+   Версионный тег не ставим: по git flow он появляется на `master` при релизе через
+   `release/*`, до тех пор MinVer выдаёт `0.0.0-alpha.0.N`.
 2. **Вертикальный срез**: `Transmission.Create()…Build()` → `Transmissions.SendAsync()` →
    `TransmissionResponse`. Тест «цепочка даёт ровно этот JSON» (тело из документации) +
    тест маппинга 422 в `SparkPostApiException` с `description` внутри.
+   Здесь же заводятся `tests/Directory.Build.props` и оба тест-проекта — вместе с первым
+   реальным тестом, а не пустыми заготовками с плейсхолдером.
 3. Остальные формы контента: шаблон, A/B, RFC822; вложения, планирование, отмена по `campaign_id`.
 4. Event Webhooks: CRUD + validate + batch-status.
 5. Приём вебхуков: модели событий, конвертер, `MapSparkPostWebhook`.

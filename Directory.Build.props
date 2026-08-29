@@ -1,0 +1,23 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Один TFM намеренно: net8.0 подхватывается потребителями на net8/9/10 без единого #if.
+         Мультитаргет — только когда появится net10-only API или замеренная разница в перфе. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+  </PropertyGroup>
+
+  <!-- Версия пакетов из git-тега. Теги без префикса: 0.1.0, а не v0.1.0 — это дефолт
+       MinVer и то же соглашение, что в gitflow.prefix.versiontag. -->
+  <ItemGroup>
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

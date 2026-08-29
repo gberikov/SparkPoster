@@ -1,0 +1,20 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Версионирование из git-тегов. -->
+    <PackageVersion Include="MinVer" Version="7.0.0" />
+
+    <!-- DI-пакет: IHttpClientFactory. 8.0.x, а не 10.x — библиотека на net8.0, и тянуть
+         в её граф зависимостей более новую линейку Microsoft.Extensions не за чем. -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
+
+    <!-- Тесты. FluentAssertions намеренно нет: с 8-й версии она платная для коммерческого
+         использования, а голых Assert хватает. -->
+    <PackageVersion Include="xunit.v3" Version="4.0.0" />
+  </ItemGroup>
+
+</Project>
