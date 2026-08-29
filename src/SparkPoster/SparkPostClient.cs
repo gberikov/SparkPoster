@@ -17,6 +17,9 @@ public interface ISparkPostClient
     /// <summary>Managing stored templates.</summary>
     ITemplates Templates { get; }
 
+    /// <summary>Managing the suppression list.</summary>
+    ISuppressionList SuppressionList { get; }
+
     /// <summary>
     /// Returns a client that acts on behalf of a subaccount.
     /// </summary>
@@ -60,6 +63,7 @@ public sealed class SparkPostClient : ISparkPostClient
         Webhooks = new WebhooksResource(requester);
         Events = new EventsResource(requester);
         Templates = new TemplatesResource(requester);
+        SuppressionList = new SuppressionListResource(requester);
     }
 
     /// <inheritdoc />
@@ -73,6 +77,9 @@ public sealed class SparkPostClient : ISparkPostClient
 
     /// <inheritdoc />
     public ITemplates Templates { get; }
+
+    /// <inheritdoc />
+    public ISuppressionList SuppressionList { get; }
 
     /// <inheritdoc />
     public ISparkPostClient ForSubaccount(int subaccountId) =>
