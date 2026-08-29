@@ -72,17 +72,17 @@ internal static class SparkPostEventReader
         {
             "click" or "open" or "initial_open"
                 or "amp_click" or "amp_open" or "amp_initial_open"
-                => Deserialize(body, SparkPostJsonContext.Default.TrackEvent),
+                => Deserialize(body, SparkPostJsonContext.Default.TrackEvent, string.Empty),
             "generation_failure" or "generation_rejection"
-                => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent),
+                => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent, string.Empty),
             "list_unsubscribe" or "link_unsubscribe"
-                => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent),
+                => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent, string.Empty),
             "relay_injection" or "relay_rejection" or "relay_delivery"
                 or "relay_tempfail" or "relay_permfail"
-                => Deserialize(body, SparkPostJsonContext.Default.RelayEvent),
+                => Deserialize(body, SparkPostJsonContext.Default.RelayEvent, string.Empty),
             "bounce" or "delivery" or "injection" or "delay" or "out_of_band"
                 or "policy_rejection" or "spam_complaint"
-                => Deserialize(body, SparkPostJsonContext.Default.MessageEvent),
+                => Deserialize(body, SparkPostJsonContext.Default.MessageEvent, string.Empty),
             // An unfamiliar type is reported as unknown rather than forced into MessageEvent:
             // the caller can still read everything through Raw and Extra.
             _ => new UnknownSparkPostEvent
@@ -116,11 +116,11 @@ internal static class SparkPostEventReader
 
         return category switch
         {
-            "message_event" => Deserialize(body, SparkPostJsonContext.Default.MessageEvent),
-            "track_event" => Deserialize(body, SparkPostJsonContext.Default.TrackEvent),
-            "gen_event" => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent),
-            "unsubscribe_event" => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent),
-            "relay_event" => Deserialize(body, SparkPostJsonContext.Default.RelayEvent),
+            "message_event" => Deserialize(body, SparkPostJsonContext.Default.MessageEvent, category),
+            "track_event" => Deserialize(body, SparkPostJsonContext.Default.TrackEvent, category),
+            "gen_event" => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent, category),
+            "unsubscribe_event" => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent, category),
+            "relay_event" => Deserialize(body, SparkPostJsonContext.Default.RelayEvent, category),
             _ => new UnknownSparkPostEvent
             {
                 Category = category,
@@ -130,7 +130,10 @@ internal static class SparkPostEventReader
         };
     }
 
-    private static SparkPostEvent Deserialize<T>(JsonObject body, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
+    private static SparkPostEvent Deserialize<T>(
+        JsonObject body,
+        System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
+        string category)
         where T : SparkPostEvent
     {
         try
@@ -144,7 +147,7 @@ internal static class SparkPostEventReader
             // it in full, together with the events that were already handled.
             return new UnknownSparkPostEvent
             {
-                Category = typeof(T).Name,
+                Category = category,
                 Type = (string?)body["type"],
                 Raw = body.DeepClone(),
                 Extra = new Dictionary<string, JsonElement>

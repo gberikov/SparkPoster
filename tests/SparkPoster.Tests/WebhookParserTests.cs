@@ -52,6 +52,7 @@ public sealed class WebhookParserTests
         var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
 
         Assert.Equal(SparkPostEventTypes.Bounce, unknown.Type);
+        Assert.Equal("message_event", unknown.Category);
         Assert.NotNull(unknown.Raw);
         Assert.Contains("sparkposter_parse_error", unknown.Extra!);
     }
