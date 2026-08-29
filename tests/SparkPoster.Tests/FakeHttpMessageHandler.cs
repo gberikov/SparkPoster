@@ -3,8 +3,8 @@ using System.Net;
 namespace SparkPoster.Tests;
 
 /// <summary>
-/// Перехватывает исходящий запрос и отдаёт заранее заданный ответ.
-/// Проверяем ровно то, что нужно: какой URL, метод, заголовки и тело мы отправили.
+/// Captures the outgoing request and returns a canned response.
+/// It covers exactly what matters: which URL, method, headers and body we sent.
 /// </summary>
 internal sealed class FakeHttpMessageHandler : HttpMessageHandler
 {

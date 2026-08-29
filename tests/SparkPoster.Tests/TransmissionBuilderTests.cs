@@ -9,7 +9,7 @@ public sealed class TransmissionBuilderTests
 
         var exception = Assert.Throws<InvalidOperationException>(builder.Build);
 
-        Assert.Contains("отправитель", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("sender", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -19,7 +19,7 @@ public sealed class TransmissionBuilderTests
 
         var exception = Assert.Throws<InvalidOperationException>(builder.Build);
 
-        Assert.Contains("получател", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("recipients", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public sealed class TransmissionBuilderTests
 
         var exception = Assert.Throws<InvalidOperationException>(builder.Build);
 
-        Assert.Contains("содержимое", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("content", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

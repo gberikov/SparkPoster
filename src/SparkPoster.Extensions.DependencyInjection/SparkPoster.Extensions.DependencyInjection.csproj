@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Регистрация SparkPoster в IServiceCollection поверх IHttpClientFactory.</Description>
+    <Description>IServiceCollection registration for SparkPoster on top of IHttpClientFactory.</Description>
   </PropertyGroup>
 
   <ItemGroup>

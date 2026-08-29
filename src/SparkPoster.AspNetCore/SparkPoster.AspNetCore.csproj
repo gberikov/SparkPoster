@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Приём вебхуков SparkPost в ASP.NET Core: MapSparkPostWebhook, проверка basic-auth и секретных заголовков.</Description>
+    <Description>Receiving SparkPost webhooks in ASP.NET Core: MapSparkPostWebhook, basic-auth and secret-header verification.</Description>
   </PropertyGroup>
 
   <ItemGroup>

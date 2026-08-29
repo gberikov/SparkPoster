@@ -5,18 +5,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Версионирование из git-тегов. -->
+    <!-- Versioning from git tags. -->
     <PackageVersion Include="MinVer" Version="7.0.0" />
 
-    <!-- DI-пакет: IHttpClientFactory. 8.0.x, а не 10.x — библиотека на net8.0, и тянуть
-         в её граф зависимостей более новую линейку Microsoft.Extensions не за чем. -->
+    <!-- The DI package: IHttpClientFactory. 8.0.x rather than 10.x because the library
+         targets net8.0 and there is no reason to drag a newer Microsoft.Extensions line
+         into its dependency graph. -->
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
 
-    <!-- Тесты. FluentAssertions намеренно нет: с 8-й версии она платная для коммерческого
-         использования, а голых Assert хватает. -->
+    <!-- Tests. FluentAssertions is deliberately absent: since version 8 it is paid for
+         commercial use, and plain Assert is enough. -->
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
 
-    <!-- Проверка эндпоинта вебхука: коды 200/401/500 и сравнение секрета иначе не проверить. -->
+    <!-- Webhook endpoint coverage: the 200/401/500 statuses and the secret comparison
+         cannot be verified any other way. -->
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.11" />
   </ItemGroup>
 

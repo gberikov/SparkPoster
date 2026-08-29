@@ -4,181 +4,184 @@ using SparkPoster.Internal;
 
 namespace SparkPoster;
 
-/// <summary>Способ авторизации, которым SparkPost стучится в ваш эндпоинт.</summary>
+/// <summary>How SparkPost authenticates itself when calling your endpoint.</summary>
 [JsonConverter(typeof(WebhookAuthTypeJsonConverter))]
 public enum WebhookAuthType
 {
-    /// <summary>Значение, которого нет в этом перечислении: SparkPost добавил новый способ.</summary>
+    /// <summary>A value this enum does not know: SparkPost added a new scheme.</summary>
     Unknown = 0,
 
-    /// <summary>Без авторизации. Годится только вместе с секретом в <see cref="WebhookRequest.CustomHeaders"/>.</summary>
+    /// <summary>No authentication. Only sane together with a secret in <see cref="WebhookRequest.CustomHeaders"/>.</summary>
     None,
 
     /// <summary>HTTP Basic.</summary>
     Basic,
 
-    /// <summary>OAuth 2.0 — токен запрашивается по <see cref="WebhookRequest.AuthRequestDetails"/>.</summary>
+    /// <summary>OAuth 2.0 — the token is requested using <see cref="WebhookRequest.AuthRequestDetails"/>.</summary>
     OAuth2,
 }
 
-/// <summary>Создание или изменение вебхука.</summary>
+/// <summary>Creating or updating a webhook.</summary>
 public sealed record WebhookRequest
 {
-    /// <summary>Имя вебхука.</summary>
+    /// <summary>The webhook name.</summary>
     public required string Name { get; init; }
 
     /// <summary>
-    /// URL, куда POST-ом приходят батчи событий. Допустимы только стандартные порты:
-    /// 80 для http и 443 для https.
+    /// The URL that event batches are POSTed to. Only standard ports are allowed:
+    /// 80 for http and 443 for https.
     /// </summary>
     public required string Target { get; init; }
 
     /// <summary>
-    /// Типы событий. Доступные значения — в <see cref="SparkPostEventTypes"/>
-    /// или через <see cref="IWebhooks.GetEventsDocumentationAsync"/>.
+    /// The event types to subscribe to. Known values live in <see cref="SparkPostEventTypes"/>,
+    /// and the current list is available through <see cref="IWebhooks.GetEventsDocumentationAsync"/>.
     /// </summary>
     public required IReadOnlyList<string> Events { get; init; }
 
-    /// <summary>Активен ли вебхук. Выключенный не получает батчи.</summary>
+    /// <summary>Whether the webhook is active. An inactive one receives no batches.</summary>
     public bool? Active { get; init; }
 
     /// <summary>
-    /// Дополнительные заголовки запроса к вашему эндпоинту. Здесь же обычно живёт секрет,
-    /// по которому вы отличаете настоящий вызов от поддельного.
+    /// Extra headers sent with every request to your endpoint. This is also where the secret
+    /// that lets you tell a genuine call from a forged one usually lives.
     /// </summary>
     public IReadOnlyDictionary<string, string>? CustomHeaders { get; init; }
 
-    /// <summary>Субаккаунты, события которых в этот вебхук не попадают. Не более 10.</summary>
+    /// <summary>Subaccounts whose events are excluded from this webhook. At most 10.</summary>
     public IReadOnlyList<int>? ExceptionSubaccounts { get; init; }
 
-    /// <summary>Способ авторизации.</summary>
+    /// <summary>The authentication scheme.</summary>
     public WebhookAuthType? AuthType { get; init; }
 
-    /// <summary>Параметры запроса токена. Обязательны при <see cref="WebhookAuthType.OAuth2"/>.</summary>
+    /// <summary>Token request details. Required when <see cref="WebhookAuthType.OAuth2"/> is used.</summary>
     public WebhookAuthRequestDetails? AuthRequestDetails { get; init; }
 
-    /// <summary>Учётные данные. Обязательны при <see cref="WebhookAuthType.Basic"/>.</summary>
+    /// <summary>Credentials. Required when <see cref="WebhookAuthType.Basic"/> is used.</summary>
     public WebhookAuthCredentials? AuthCredentials { get; init; }
 }
 
-/// <summary>Вебхук.</summary>
+/// <summary>A webhook.</summary>
 public sealed record Webhook
 {
-    /// <summary>Идентификатор.</summary>
+    /// <summary>The identifier.</summary>
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>Имя вебхука.</summary>
+    /// <summary>The webhook name.</summary>
     public string? Name { get; init; }
 
-    /// <summary>URL, куда приходят батчи событий.</summary>
+    /// <summary>The URL that event batches are POSTed to.</summary>
     public string? Target { get; init; }
 
-    /// <summary>Типы событий.</summary>
+    /// <summary>The subscribed event types.</summary>
     public IReadOnlyList<string>? Events { get; init; }
 
-    /// <summary>Активен ли вебхук.</summary>
+    /// <summary>Whether the webhook is active.</summary>
     public bool? Active { get; init; }
 
-    /// <summary>Дополнительные заголовки запроса.</summary>
+    /// <summary>Extra headers sent with every request.</summary>
     public IReadOnlyDictionary<string, string>? CustomHeaders { get; init; }
 
-    /// <summary>Субаккаунты, события которых сюда не попадают.</summary>
+    /// <summary>Subaccounts whose events are excluded.</summary>
     public IReadOnlyList<int>? ExceptionSubaccounts { get; init; }
 
-    /// <summary>Способ авторизации.</summary>
+    /// <summary>The authentication scheme.</summary>
     public WebhookAuthType? AuthType { get; init; }
 
-    /// <summary>Параметры запроса токена.</summary>
+    /// <summary>Token request details.</summary>
     public WebhookAuthRequestDetails? AuthRequestDetails { get; init; }
 
-    /// <summary>Учётные данные.</summary>
+    /// <summary>Credentials.</summary>
     public WebhookAuthCredentials? AuthCredentials { get; init; }
 
-    /// <summary>Когда батч в последний раз был доставлен успешно.</summary>
+    /// <summary>When a batch was last delivered successfully.</summary>
     public string? LastSuccessful { get; init; }
 
-    /// <summary>Когда батч в последний раз доставить не удалось.</summary>
+    /// <summary>When a batch delivery last failed.</summary>
     public string? LastFailure { get; init; }
 }
 
-/// <summary>Параметры запроса OAuth-токена.</summary>
+/// <summary>Details of the OAuth token request.</summary>
 public sealed record WebhookAuthRequestDetails
 {
-    /// <summary>URL, по которому запрашивается токен.</summary>
+    /// <summary>The URL the token is requested from.</summary>
     public string? Url { get; init; }
 
-    /// <summary>Тело запроса токена: <c>client_id</c>, <c>client_secret</c>, <c>grant_type</c>.</summary>
+    /// <summary>The token request body: <c>client_id</c>, <c>client_secret</c>, <c>grant_type</c>.</summary>
     public JsonNode? Body { get; init; }
 
-    /// <summary>Дополнительные заголовки запроса токена.</summary>
+    /// <summary>Extra headers for the token request.</summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
 }
 
-/// <summary>Учётные данные для авторизации в вашем эндпоинте.</summary>
+/// <summary>Credentials used to authenticate against your endpoint.</summary>
 public sealed record WebhookAuthCredentials
 {
-    /// <summary>Имя пользователя для Basic-авторизации.</summary>
+    /// <summary>The user name for Basic authentication.</summary>
     public string? Username { get; init; }
 
-    /// <summary>Пароль для Basic-авторизации.</summary>
+    /// <summary>The password for Basic authentication.</summary>
     public string? Password { get; init; }
 
-    /// <summary>Полученный OAuth-токен.</summary>
+    /// <summary>The OAuth token that was obtained.</summary>
     public string? AccessToken { get; init; }
 
-    /// <summary>Срок жизни OAuth-токена в секундах.</summary>
+    /// <summary>The lifetime of the OAuth token, in seconds.</summary>
     public int? ExpiresIn { get; init; }
 }
 
-/// <summary>Результат проверки вебхука тестовым батчем.</summary>
+/// <summary>The result of validating a webhook with a test batch.</summary>
 public sealed record WebhookValidationResult
 {
-    /// <summary>Сообщение о результате.</summary>
+    /// <summary>A message describing the outcome.</summary>
     public string? Msg { get; init; }
 
-    /// <summary>Что ответил ваш эндпоинт.</summary>
+    /// <summary>What your endpoint answered.</summary>
     public WebhookTargetResponse? Response { get; init; }
 }
 
-/// <summary>Ответ вашего эндпоинта на тестовый батч.</summary>
+/// <summary>What your endpoint answered to the test batch.</summary>
 public sealed record WebhookTargetResponse
 {
-    /// <summary>HTTP-код ответа.</summary>
+    /// <summary>The HTTP status code.</summary>
     public int? Status { get; init; }
 
-    /// <summary>Заголовки ответа.</summary>
+    /// <summary>The response headers.</summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
 
-    /// <summary>Тело ответа.</summary>
+    /// <summary>The response body.</summary>
     public string? Body { get; init; }
 }
 
 /// <summary>
-/// Состояние доставки одного батча событий. Хранится 24 часа.
+/// The delivery status of one event batch. Kept for 24 hours.
 /// </summary>
 public sealed record WebhookBatchStatus
 {
-    /// <summary>Идентификатор батча. Он же приходит в заголовке <c>X-MessageSystems-Batch-ID</c>.</summary>
+    /// <summary>
+    /// The batch identifier, the same one that arrives in the
+    /// <c>X-MessageSystems-Batch-ID</c> header.
+    /// </summary>
     public string? BatchId { get; init; }
 
-    /// <summary>Идентификатор вебхука.</summary>
+    /// <summary>The webhook identifier.</summary>
     public string? WebhookId { get; init; }
 
-    /// <summary>Когда батч был создан.</summary>
+    /// <summary>When the batch was created.</summary>
     public DateTimeOffset? Ts { get; init; }
 
-    /// <summary>Сколько событий было в батче.</summary>
+    /// <summary>How many events the batch held.</summary>
     public int? BatchSize { get; init; }
 
-    /// <summary>Сколько было неудачных попыток до доставки. Ноль, если получилось с первого раза.</summary>
+    /// <summary>How many attempts failed before delivery. Zero when the first attempt succeeded.</summary>
     public int? Attempts { get; init; }
 
-    /// <summary>Код ответа вашего эндпоинта.</summary>
+    /// <summary>The status code your endpoint answered with.</summary>
     public int? ResponseCode { get; init; }
 
-    /// <summary>Код ошибки, если доставить не удалось.</summary>
+    /// <summary>The failure code, when delivery did not succeed.</summary>
     public int? FailureCode { get; init; }
 
-    /// <summary>Длительность всего запроса в миллисекундах.</summary>
+    /// <summary>The duration of the whole round trip, in milliseconds.</summary>
     public int? Latency { get; init; }
 }

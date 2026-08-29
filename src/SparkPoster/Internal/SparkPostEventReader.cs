@@ -5,10 +5,10 @@ using SparkPoster.Webhooks;
 namespace SparkPoster.Internal;
 
 /// <summary>
-/// Разбирает батч вебхука. Каждый элемент выглядит как
-/// <c>{"msys": {"message_event": { ... }}}</c>: дискриминатор здесь — имя внешнего
-/// свойства, а не поле внутри объекта, поэтому полиморфизм System.Text.Json не годится
-/// и разбор написан руками.
+/// Parses a webhook batch. Every element looks like
+/// <c>{"msys": {"message_event": { ... }}}</c>: the discriminator is the name of the outer
+/// property rather than a field inside the object, so System.Text.Json polymorphism does not
+/// apply and the dispatch is written by hand.
 /// </summary>
 internal static class SparkPostEventReader
 {
@@ -21,7 +21,7 @@ internal static class SparkPostEventReader
             return [];
         }
 
-        // Батч — массив; одиночное событие тоже принимаем, так его удобнее тестировать.
+        // A batch is an array; a single event is accepted too, which makes testing easier.
         var items = batch as JsonArray ?? [batch.DeepClone()];
         var events = new List<SparkPostEvent>(items.Count);
 
@@ -45,7 +45,7 @@ internal static class SparkPostEventReader
             return null;
         }
 
-        // Батч валидации приходит как [{"msys":{}}] — событий в нём нет.
+        // The validation batch arrives as [{"msys":{}}] and carries no events.
         if (wrapper[Envelope] is not JsonObject envelope || envelope.Count == 0)
         {
             return null;
@@ -80,12 +80,12 @@ internal static class SparkPostEventReader
         try
         {
             return body.Deserialize(typeInfo)
-                ?? throw new JsonException("Тело события оказалось пустым.");
+                ?? throw new JsonException("The event body turned out to be empty.");
         }
         catch (JsonException exception)
         {
-            // Одно неразобранное событие не должно ронять весь батч: SparkPost повторил бы
-            // его целиком, вместе с уже обработанными событиями.
+            // One unparsable event must not take down the whole batch: SparkPost would resend
+            // it in full, together with the events that were already handled.
             return new UnknownSparkPostEvent
             {
                 Category = typeof(T).Name,

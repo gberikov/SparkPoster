@@ -39,7 +39,7 @@ public sealed class TransmissionsTests
 
         Assert.True(
             JsonNode.DeepEquals(JsonNode.Parse(handler.LastBody!), JsonNode.Parse(expected)),
-            $"Отправлено не то тело:{Environment.NewLine}{handler.LastBody}");
+            $"Unexpected request body:{Environment.NewLine}{handler.LastBody}");
     }
 
     [Fact]

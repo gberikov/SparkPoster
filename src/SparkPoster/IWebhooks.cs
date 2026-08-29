@@ -2,78 +2,78 @@ using System.Text.Json.Nodes;
 
 namespace SparkPoster;
 
-/// <summary>Управление вебхуками событий.</summary>
+/// <summary>Managing event webhooks.</summary>
 public interface IWebhooks
 {
-    /// <summary>Создаёт вебхук.</summary>
-    /// <param name="webhook">Описание вебхука.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Идентификатор созданного вебхука.</returns>
+    /// <summary>Creates a webhook.</summary>
+    /// <param name="webhook">The webhook definition.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The identifier of the created webhook.</returns>
     /// <remarks>
-    /// При создании SparkPost делает тестовый POST на <see cref="WebhookRequest.Target"/>.
-    /// Если эндпоинт не ответит 200, вебхук не создастся, а запрос завершится ошибкой 400.
-    /// Данные начнут приходить примерно через минуту после создания.
+    /// On creation SparkPost sends a test POST to <see cref="WebhookRequest.Target"/>.
+    /// If the endpoint does not answer 200, the webhook is not created and the request fails
+    /// with a 400. Events start arriving about a minute after creation.
     /// </remarks>
     Task<string> CreateAsync(WebhookRequest webhook, CancellationToken cancellationToken = default);
 
-    /// <summary>Возвращает вебхук.</summary>
-    /// <param name="id">Идентификатор вебхука.</param>
-    /// <param name="timezone">Часовой пояс для дат в ответе, например <c>America/New_York</c>.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Вебхук.</returns>
+    /// <summary>Returns a webhook.</summary>
+    /// <param name="id">The webhook identifier.</param>
+    /// <param name="timezone">The time zone for dates in the response, for example <c>America/New_York</c>.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The webhook.</returns>
     Task<Webhook> GetAsync(string id, string? timezone = null, CancellationToken cancellationToken = default);
 
-    /// <summary>Возвращает все вебхуки.</summary>
-    /// <param name="timezone">Часовой пояс для дат в ответе.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Список вебхуков.</returns>
+    /// <summary>Returns every webhook.</summary>
+    /// <param name="timezone">The time zone for dates in the response.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The list of webhooks.</returns>
     Task<IReadOnlyList<Webhook>> ListAsync(string? timezone = null, CancellationToken cancellationToken = default);
 
-    /// <summary>Изменяет вебхук.</summary>
-    /// <param name="id">Идентификатор вебхука.</param>
-    /// <param name="webhook">Новые значения. Массивы заменяются целиком, а не дополняются.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Задача, завершающаяся после изменения.</returns>
+    /// <summary>Updates a webhook.</summary>
+    /// <param name="id">The webhook identifier.</param>
+    /// <param name="webhook">The new values. Arrays are replaced wholesale, not merged.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task that completes once the webhook is updated.</returns>
     Task UpdateAsync(string id, WebhookRequest webhook, CancellationToken cancellationToken = default);
 
-    /// <summary>Удаляет вебхук.</summary>
-    /// <param name="id">Идентификатор вебхука.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Задача, завершающаяся после удаления.</returns>
+    /// <summary>Deletes a webhook.</summary>
+    /// <param name="id">The webhook identifier.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task that completes once the webhook is deleted.</returns>
     Task DeleteAsync(string id, CancellationToken cancellationToken = default);
 
-    /// <summary>Отправляет на эндпоинт тестовый батч и возвращает, что тот ответил.</summary>
-    /// <param name="id">Идентификатор вебхука.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Результат проверки.</returns>
+    /// <summary>Posts a test batch to the target and reports what it answered.</summary>
+    /// <param name="id">The webhook identifier.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The validation result.</returns>
     Task<WebhookValidationResult> ValidateAsync(string id, CancellationToken cancellationToken = default);
 
-    /// <summary>Возвращает состояние доставки последних батчей.</summary>
-    /// <param name="id">Идентификатор вебхука.</param>
-    /// <param name="limit">Сколько записей вернуть. По умолчанию SparkPost отдаёт 1000.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Состояния батчей за последние 24 часа.</returns>
+    /// <summary>Returns the delivery status of recent batches.</summary>
+    /// <param name="id">The webhook identifier.</param>
+    /// <param name="limit">How many records to return. SparkPost defaults to 1000.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>Batch statuses for the last 24 hours.</returns>
     /// <remarks>
-    /// Батч, не получивший ответ 200, повторяется в течение 8 часов, после чего отбрасывается.
+    /// A batch that does not receive a 200 is retried for 8 hours and then discarded.
     /// </remarks>
     Task<IReadOnlyList<WebhookBatchStatus>> GetBatchStatusAsync(
         string id,
         int? limit = null,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Возвращает описание всех типов событий и их полей как есть, в виде JSON.</summary>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Документация по событиям.</returns>
+    /// <summary>Returns the description of every event type and its fields, as raw JSON.</summary>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The event documentation.</returns>
     /// <remarks>
-    /// Ответ отдаётся необработанным: это справочник, структура которого меняется вместе
-    /// с API, и типизировать его — значит устаревать вместе с ним.
+    /// The response is returned unprocessed: this is a reference whose shape changes along
+    /// with the API, and typing it would mean going stale along with it.
     /// </remarks>
     Task<JsonNode> GetEventsDocumentationAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Возвращает примеры событий как есть, в виде JSON.</summary>
-    /// <param name="events">Типы событий; если не заданы, возвращаются все.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Примеры событий — удобны как фикстуры для тестов вашего обработчика.</returns>
+    /// <summary>Returns sample events as raw JSON.</summary>
+    /// <param name="events">The event types; all of them when omitted.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>Sample events — handy as fixtures for testing your own handler.</returns>
     Task<JsonNode> GetEventSamplesAsync(
         IEnumerable<string>? events = null,
         CancellationToken cancellationToken = default);

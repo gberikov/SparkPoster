@@ -7,8 +7,8 @@ using System.Text.Json.Serialization.Metadata;
 namespace SparkPoster.Internal;
 
 /// <summary>
-/// Общая обвязка HTTP: авторизация, заголовок субаккаунта, разбор конверта ответа
-/// и превращение кодов ошибок в исключения.
+/// The shared HTTP plumbing: authorization, the subaccount header, unwrapping the response
+/// envelope and turning error statuses into exceptions.
 /// </summary>
 internal sealed class SparkPostRequester
 {
@@ -27,9 +27,9 @@ internal sealed class SparkPostRequester
     }
 
     /// <summary>
-    /// Собирает запрос. Заголовки ставятся именно на запрос, а не в
-    /// <see cref="HttpClient.DefaultRequestHeaders"/>: клиент один на всё приложение,
-    /// а субаккаунт — область действия конкретного вызова.
+    /// Builds a request. Headers go on the request itself rather than into
+    /// <see cref="HttpClient.DefaultRequestHeaders"/>: the client is shared by the whole
+    /// application, while a subaccount is the scope of one particular call.
     /// </summary>
     public HttpRequestMessage CreateRequest(HttpMethod method, string relativePath)
     {
@@ -59,7 +59,7 @@ internal sealed class SparkPostRequester
         return response;
     }
 
-    /// <summary>Отправляет запрос и разбирает конверт ответа.</summary>
+    /// <summary>Sends a request and unwraps the response envelope.</summary>
     public async Task<T> SendAndReadAsync<T>(
         HttpRequestMessage request,
         JsonTypeInfo<SparkPostEnvelope<T>> typeInfo,
@@ -69,15 +69,15 @@ internal sealed class SparkPostRequester
         return await ReadResultsAsync(response, typeInfo, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Отправляет запрос, тело ответа которого не нужно.</summary>
+    /// <summary>Sends a request whose response body is not needed.</summary>
     public async Task SendIgnoringResultAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Отправляет запрос и возвращает содержимое <c>results</c> без разбора в модель.
-    /// Нужно для справочных эндпоинтов, структура которых меняется вместе с API.
+    /// Sends a request and returns the contents of <c>results</c> without mapping it to a model.
+    /// Needed for reference endpoints whose shape changes along with the API.
     /// </summary>
     public async Task<JsonNode> SendAndReadRawAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -87,7 +87,7 @@ internal sealed class SparkPostRequester
         await using (stream.ConfigureAwait(false))
         {
             var document = await JsonNode.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false)
-                ?? throw new SparkPostException("SparkPost вернул пустой ответ.");
+                ?? throw new SparkPostException("SparkPost returned an empty response.");
 
             return document["results"] ?? document;
         }
@@ -107,7 +107,7 @@ internal sealed class SparkPostRequester
 
             return envelope is { Results: not null }
                 ? envelope.Results
-                : throw new SparkPostException("SparkPost вернул ответ без поля results.");
+                : throw new SparkPostException("SparkPost returned a response without a results field.");
         }
     }
 
@@ -117,11 +117,11 @@ internal sealed class SparkPostRequester
         var errors = ParseErrors(body);
         var statusCode = response.StatusCode;
 
-        // 420 — превышен лимит отправки, его нет в перечислении HttpStatusCode.
+        // 420 means the sending limit was exceeded; it is not part of the HttpStatusCode enum.
         var isRateLimited = (int)statusCode is 429 or 420;
         var retryAfter = isRateLimited ? ReadRetryAfter(response) : null;
 
-        // Вызывающий получает исключение вместо ответа и уже не сможет его освободить.
+        // The caller gets an exception instead of the response and can no longer dispose it.
         response.Dispose();
 
         throw isRateLimited
@@ -146,9 +146,9 @@ internal sealed class SparkPostRequester
     }
 
     /// <summary>
-    /// Разбирает тело ошибки. Тело может оказаться не JSON — заглушка прокси, HTML-страница;
-    /// в этом случае исключение всё равно должно долететь до вызывающего, поэтому здесь молчим,
-    /// а сырое тело уезжает в <see cref="SparkPostApiException.RawBody"/>.
+    /// Parses the error body. The body may not be JSON at all — a proxy stub, an HTML page;
+    /// the exception still has to reach the caller either way, so failures are swallowed here
+    /// and the raw body travels on in <see cref="SparkPostApiException.RawBody"/>.
     /// </summary>
     private static List<SparkPostError> ParseErrors(string? body)
     {

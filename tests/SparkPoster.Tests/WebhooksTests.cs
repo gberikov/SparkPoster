@@ -142,7 +142,7 @@ public sealed class WebhooksTests
     [Fact]
     public async Task Batch_status_accepts_both_numbers_and_strings()
     {
-        // response_code в документации описан числом, а в примерах приходит строкой.
+        // response_code is documented as a number but arrives quoted in the examples.
         var (client, handler) = CreateClient(
             HttpStatusCode.OK,
             """
@@ -203,7 +203,7 @@ public sealed class WebhooksTests
     private static void AssertJson(string expected, string actual) =>
         Assert.True(
             JsonNode.DeepEquals(JsonNode.Parse(actual), JsonNode.Parse(expected)),
-            $"Отправлено не то тело:{Environment.NewLine}{actual}");
+            $"Unexpected request body:{Environment.NewLine}{actual}");
 
     private static (SparkPostClient Client, FakeHttpMessageHandler Handler) CreateClient(
         HttpStatusCode statusCode,

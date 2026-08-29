@@ -1,36 +1,35 @@
 namespace SparkPoster;
 
 /// <summary>
-/// Вложение или встроенное изображение.
+/// An attachment or an inline image.
 /// </summary>
 /// <remarks>
-/// SparkPost принимает содержимое только как Base64 внутри JSON, поэтому потоковой
-/// отправки здесь не существует в принципе: файл целиком оказывается в памяти,
-/// причём в Base64 он примерно на треть больше исходного. Общий предел содержимого
-/// письма — 20 МБ.
+/// SparkPost only accepts content as Base64 inside JSON, so streaming simply does not
+/// exist here: the whole file ends up in memory, and Base64 makes it roughly a third
+/// larger. The message content as a whole is capped at 20 MB.
 /// </remarks>
 public sealed record Attachment
 {
     /// <summary>
-    /// Имя файла для <c>Content-Disposition</c>, а для встроенного изображения —
-    /// значение <c>Content-ID</c>, по которому на него ссылается HTML. Не длиннее 255 байт.
+    /// The file name for <c>Content-Disposition</c>; for an inline image, the
+    /// <c>Content-ID</c> the HTML refers to. At most 255 bytes.
     /// </summary>
     public required string Name { get; init; }
 
     /// <summary>
-    /// MIME-тип. Подставляется в заголовок <c>Content-Type</c> как есть,
-    /// при необходимости вместе с параметром charset.
+    /// The MIME type. Applied to the <c>Content-Type</c> header as-is, including a charset
+    /// parameter when one is needed.
     /// </summary>
     public required string Type { get; init; }
 
-    /// <summary>Содержимое, закодированное в Base64, без переносов строк.</summary>
+    /// <summary>The content, Base64 encoded, without line breaks.</summary>
     public required string Data { get; init; }
 
-    /// <summary>Создаёт вложение из массива байтов.</summary>
-    /// <param name="name">Имя файла.</param>
-    /// <param name="type">MIME-тип.</param>
-    /// <param name="content">Содержимое.</param>
-    /// <returns>Вложение.</returns>
+    /// <summary>Creates an attachment from a byte array.</summary>
+    /// <param name="name">The file name.</param>
+    /// <param name="type">The MIME type.</param>
+    /// <param name="content">The content.</param>
+    /// <returns>The attachment.</returns>
     public static Attachment FromBytes(string name, string type, ReadOnlySpan<byte> content)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -44,12 +43,12 @@ public sealed record Attachment
         };
     }
 
-    /// <summary>Читает файл целиком и создаёт из него вложение.</summary>
-    /// <param name="path">Путь к файлу.</param>
-    /// <param name="type">MIME-тип.</param>
-    /// <param name="name">Имя файла в письме. По умолчанию берётся из пути.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Вложение.</returns>
+    /// <summary>Reads a file in full and turns it into an attachment.</summary>
+    /// <param name="path">The path to the file.</param>
+    /// <param name="type">The MIME type.</param>
+    /// <param name="name">The file name to use in the message. Defaults to the name from the path.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The attachment.</returns>
     public static async Task<Attachment> FromFileAsync(
         string path,
         string type,
@@ -62,12 +61,12 @@ public sealed record Attachment
         return FromBytes(name ?? Path.GetFileName(path), type, content);
     }
 
-    /// <summary>Вычитывает поток целиком и создаёт из него вложение.</summary>
-    /// <param name="stream">Поток с содержимым.</param>
-    /// <param name="name">Имя файла.</param>
-    /// <param name="type">MIME-тип.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>Вложение.</returns>
+    /// <summary>Drains a stream in full and turns it into an attachment.</summary>
+    /// <param name="stream">The stream holding the content.</param>
+    /// <param name="name">The file name.</param>
+    /// <param name="type">The MIME type.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The attachment.</returns>
     public static async Task<Attachment> FromStreamAsync(
         Stream stream,
         string name,

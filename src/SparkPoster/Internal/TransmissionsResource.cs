@@ -7,8 +7,8 @@ internal sealed class TransmissionsResource : ITransmissions
     private const string IdempotencyKeyHeader = "Idempotency-Key";
 
     /// <summary>
-    /// Документация SparkPost называет заголовок повтора по-разному в разных местах,
-    /// поэтому проверяем оба варианта.
+    /// The SparkPost documentation spells the replay header differently in different places,
+    /// so both spellings are checked.
     /// </summary>
     private static readonly string[] ReplayHeaders = ["X-Idempotent-Replayed", "Idempotency-Replay"];
 
@@ -26,9 +26,9 @@ internal sealed class TransmissionsResource : ITransmissions
         using var request = _requester.CreateRequest(HttpMethod.Post, "transmissions");
         request.Content = JsonContent.Create(transmission, SparkPostJsonContext.Default.TransmissionRequest);
 
-        // Ключ ставится на HttpRequestMessage, поэтому переживает повтор в DelegatingHandler:
-        // повторно отправляется тот же запрос с тем же ключом, и SparkPost возвращает
-        // исходный результат вместо второго письма.
+        // The key lives on the HttpRequestMessage, so it survives a retry inside a
+        // DelegatingHandler: the very same request is sent again with the very same key,
+        // and SparkPost replays the original result instead of sending a second message.
         request.Headers.TryAddWithoutValidation(
             IdempotencyKeyHeader,
             idempotencyKey ?? Guid.NewGuid().ToString("N"));

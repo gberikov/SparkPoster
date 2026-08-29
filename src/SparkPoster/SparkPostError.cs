@@ -4,22 +4,25 @@ using SparkPoster.Internal;
 namespace SparkPoster;
 
 /// <summary>
-/// Одна ошибка из тела ответа SparkPost.
+/// A single error from a SparkPost response body.
 /// </summary>
 /// <remarks>
-/// Полезное обычно лежит в <see cref="Description"/> («content object or template_id required»),
-/// тогда как <see cref="Message"/> общий («required field is missing»).
+/// The useful text usually lives in <see cref="Description"/> ("content object or
+/// template_id required"), while <see cref="Message"/> stays generic ("required field
+/// is missing").
 /// </remarks>
 public sealed record SparkPostError
 {
-    /// <summary>Краткая формулировка ошибки.</summary>
+    /// <summary>A short statement of what went wrong.</summary>
     public string? Message { get; init; }
 
-    /// <summary>Подробное описание — как правило, самое информативное поле ответа.</summary>
+    /// <summary>The detailed description — usually the most informative part of the response.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Код ошибки SparkPost (например, <c>1600</c> — повторное использование ключа идемпотентности).</summary>
-    /// <remarks>Приходит то строкой, то числом — в зависимости от эндпоинта.</remarks>
+    /// <summary>
+    /// The SparkPost error code, for example <c>1600</c> for a reused idempotency key.
+    /// </summary>
+    /// <remarks>Arrives as a string or as a number, depending on the endpoint.</remarks>
     [JsonConverter(typeof(FlexibleStringJsonConverter))]
     public string? Code { get; init; }
 }

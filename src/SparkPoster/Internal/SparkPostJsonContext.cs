@@ -4,13 +4,14 @@ using SparkPoster.Webhooks;
 namespace SparkPoster.Internal;
 
 /// <summary>
-/// Контекст сериализации. Source-gen, а не рефлексия: библиотека должна оставаться
-/// пригодной для trimming и Native AOT.
+/// The serialization context. Source-generated rather than reflection-based: the library
+/// has to stay usable under trimming and Native AOT.
 /// </summary>
 /// <remarks>
-/// <see cref="JsonNumberHandling.AllowReadingFromString"/> здесь не перестраховка:
-/// SparkPost отдаёт одни и те же числовые поля то числами, то строками — например,
-/// <c>response_code</c> в статусе батча описан числом, а в примерах приходит строкой.
+/// <see cref="JsonNumberHandling.AllowReadingFromString"/> is not paranoia here: SparkPost
+/// returns the same numeric fields sometimes as numbers and sometimes as strings — the batch
+/// status <c>response_code</c>, for instance, is documented as a number but shows up quoted
+/// in the examples.
 /// </remarks>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,

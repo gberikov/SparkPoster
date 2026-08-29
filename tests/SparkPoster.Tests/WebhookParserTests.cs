@@ -4,7 +4,7 @@ namespace SparkPoster.Tests;
 
 public sealed class WebhookParserTests
 {
-    /// <summary>Отбойник — пример из документации SparkPost, урезанный до значимых полей.</summary>
+    /// <summary>A bounce: the SparkPost documentation example, trimmed to the fields that matter.</summary>
     private const string BounceBatch = """
         [{"msys":{"message_event":{
           "type":"bounce","event_id":"92356927693813856","timestamp":"1460989507",
@@ -106,7 +106,7 @@ public sealed class WebhookParserTests
     [Fact]
     public void Webhook_validation_batch_contains_no_events()
     {
-        // Именно такой батч SparkPost присылает при вызове ValidateAsync.
+        // This is exactly the batch SparkPost posts when ValidateAsync is called.
         Assert.Empty(SparkPostWebhookParser.Parse("""[{"msys":{}}]"""));
     }
 

@@ -6,35 +6,34 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace SparkPoster;
 
-/// <summary>Точка входа для сборки письма.</summary>
+/// <summary>The entry point for assembling a transmission.</summary>
 public static class Transmission
 {
-    /// <summary>Создаёт построитель письма.</summary>
-    /// <returns>Новый построитель.</returns>
+    /// <summary>Creates a transmission builder.</summary>
+    /// <returns>A new builder.</returns>
     public static TransmissionBuilder Create() => new();
 }
 
 /// <summary>
-/// Построитель письма. Не потокобезопасен: один экземпляр — одно письмо в одном потоке.
+/// Builds a transmission. Not thread-safe: one instance builds one message on one thread.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Построитель ничего не отправляет: <see cref="Build"/> возвращает
-/// <see cref="TransmissionRequest"/>, который затем передаётся в
-/// <see cref="ITransmissions.SendAsync"/>. Готовый запрос можно сохранить, сериализовать
-/// или переиспользовать через <c>with</c>.
+/// The builder sends nothing: <see cref="Build"/> returns a <see cref="TransmissionRequest"/>
+/// which you then hand to <see cref="ITransmissions.SendAsync"/>. The finished request can be
+/// stored, serialized, or reused through <c>with</c>.
 /// </para>
 /// <para>
-/// Содержимое задаётся ровно одним способом: <see cref="Html"/>/<see cref="Text"/>,
-/// <see cref="Template"/>, <see cref="AbTest"/> или <see cref="RawRfc822"/>.
-/// Смешение способов обнаруживается в <see cref="Build"/>.
+/// Content is set exactly one way: <see cref="Html"/>/<see cref="Text"/>,
+/// <see cref="Template"/>, <see cref="AbTest"/> or <see cref="RawRfc822"/>. Mixing them is
+/// detected in <see cref="Build"/>.
 /// </para>
 /// </remarks>
 public sealed class TransmissionBuilder
 {
     /// <summary>
-    /// Данные подстановки сериализуются без политики именования: имена переменных
-    /// шаблона должны остаться ровно такими, как их написал вызывающий.
+    /// Substitution data is serialized without a naming policy: template variable names must
+    /// stay exactly as the caller wrote them.
     /// </summary>
     private static readonly JsonSerializerOptions UserDataOptions = new()
     {
@@ -67,10 +66,10 @@ public sealed class TransmissionBuilder
     private JsonNode? _substitutionData;
     private JsonNode? _metadata;
 
-    /// <summary>Задаёт отправителя.</summary>
-    /// <param name="email">Адрес отправителя.</param>
-    /// <param name="name">Отображаемое имя.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the sender.</summary>
+    /// <param name="email">The sender address.</param>
+    /// <param name="name">The display name.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder From(string email, string? name = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
@@ -78,10 +77,10 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Добавляет получателя.</summary>
-    /// <param name="email">Адрес получателя.</param>
-    /// <param name="name">Отображаемое имя.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Adds a recipient.</summary>
+    /// <param name="email">The recipient address.</param>
+    /// <param name="name">The display name.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder To(string email, string? name = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
@@ -89,9 +88,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Добавляет получателя целиком — с его данными подстановки, метаданными и метками.</summary>
-    /// <param name="recipient">Получатель.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Adds a fully specified recipient, with its substitution data, metadata and tags.</summary>
+    /// <param name="recipient">The recipient.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder To(Recipient recipient)
     {
         ArgumentNullException.ThrowIfNull(recipient);
@@ -99,9 +98,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Добавляет несколько получателей.</summary>
-    /// <param name="recipients">Получатели.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Adds several recipients.</summary>
+    /// <param name="recipients">The recipients.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder To(IEnumerable<Recipient> recipients)
     {
         ArgumentNullException.ThrowIfNull(recipients);
@@ -109,14 +108,14 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Добавляет получателя копии.</summary>
-    /// <param name="email">Адрес получателя копии.</param>
-    /// <param name="name">Отображаемое имя.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Adds a CC recipient.</summary>
+    /// <param name="email">The CC address.</param>
+    /// <param name="name">The display name.</param>
+    /// <returns>The same builder.</returns>
     /// <remarks>
-    /// В SparkPost нет отдельного поля для копий: получатель копии добавляется в общий
-    /// список с подменённым заголовком <c>To</c>, а его адрес дописывается в заголовок
-    /// <c>CC</c>. Построитель делает это за вас в <see cref="Build"/>.
+    /// SparkPost has no dedicated field for copies: a CC recipient is added to the ordinary
+    /// recipient list with an overridden <c>To</c> header, and its address is appended to the
+    /// <c>CC</c> header. <see cref="Build"/> does that for you.
     /// </remarks>
     public TransmissionBuilder Cc(string email, string? name = null)
     {
@@ -125,13 +124,13 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Добавляет скрытого получателя.</summary>
-    /// <param name="email">Адрес скрытого получателя.</param>
-    /// <param name="name">Отображаемое имя.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Adds a BCC recipient.</summary>
+    /// <param name="email">The BCC address.</param>
+    /// <param name="name">The display name.</param>
+    /// <returns>The same builder.</returns>
     /// <remarks>
-    /// Скрытый получатель добавляется в общий список с подменённым заголовком <c>To</c>
-    /// и, в отличие от копии, нигде в заголовках не упоминается.
+    /// A BCC recipient is added to the ordinary recipient list with an overridden <c>To</c>
+    /// header and, unlike a CC recipient, is never mentioned in any header.
     /// </remarks>
     public TransmissionBuilder Bcc(string email, string? name = null)
     {
@@ -140,9 +139,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Отправляет письмо по сохранённому списку получателей.</summary>
-    /// <param name="listId">Идентификатор списка.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sends to a stored recipient list.</summary>
+    /// <param name="listId">The list identifier.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder RecipientList(string listId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(listId);
@@ -150,9 +149,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт тему письма. Поддерживает язык шаблонов.</summary>
-    /// <param name="subject">Тема.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the subject line. Supports the template language.</summary>
+    /// <param name="subject">The subject.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Subject(string subject)
     {
         ArgumentNullException.ThrowIfNull(subject);
@@ -160,9 +159,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт HTML-версию письма.</summary>
-    /// <param name="html">HTML-содержимое.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the HTML part of the message.</summary>
+    /// <param name="html">The HTML content.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Html(string html)
     {
         ArgumentNullException.ThrowIfNull(html);
@@ -170,9 +169,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт текстовую версию письма.</summary>
-    /// <param name="text">Текстовое содержимое.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the plain text part of the message.</summary>
+    /// <param name="text">The text content.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Text(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -180,9 +179,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт AMP-версию письма.</summary>
-    /// <param name="ampHtml">AMP-содержимое.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the AMP part of the message.</summary>
+    /// <param name="ampHtml">The AMP content.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder AmpHtml(string ampHtml)
     {
         ArgumentNullException.ThrowIfNull(ampHtml);
@@ -190,10 +189,10 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Отправляет письмо по сохранённому шаблону.</summary>
-    /// <param name="templateId">Идентификатор шаблона.</param>
-    /// <param name="useDraft">Использовать черновик вместо опубликованной версии.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sends using a stored template.</summary>
+    /// <param name="templateId">The template identifier.</param>
+    /// <param name="useDraft">Use the draft instead of the published version.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Template(string templateId, bool useDraft = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(templateId);
@@ -202,10 +201,10 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Отправляет письмо как A/B-тест.</summary>
-    /// <param name="abTestId">Идентификатор A/B-теста.</param>
-    /// <returns>Тот же построитель.</returns>
-    /// <remarks>A/B-тесты поддерживают только письма с одним получателем.</remarks>
+    /// <summary>Sends the message as an A/B test.</summary>
+    /// <param name="abTestId">The A/B test identifier.</param>
+    /// <returns>The same builder.</returns>
+    /// <remarks>A/B tests only support single-recipient transmissions.</remarks>
     public TransmissionBuilder AbTest(string abTestId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(abTestId);
@@ -213,9 +212,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Отправляет готовое письмо в формате RFC822.</summary>
-    /// <param name="rfc822">Содержимое письма.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sends a ready-made RFC822 message.</summary>
+    /// <param name="rfc822">The message content.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder RawRfc822(string rfc822)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rfc822);
@@ -223,9 +222,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Добавляет вложение.</summary>
-    /// <param name="attachment">Вложение.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Adds an attachment.</summary>
+    /// <param name="attachment">The attachment.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Attach(Attachment attachment)
     {
         ArgumentNullException.ThrowIfNull(attachment);
@@ -233,9 +232,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Добавляет встроенное изображение.</summary>
-    /// <param name="image">Изображение; на него ссылаются из HTML через <c>cid:</c> с его именем.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Adds an inline image.</summary>
+    /// <param name="image">The image; reference it from the HTML as <c>cid:</c> plus its name.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder InlineImage(Attachment image)
     {
         ArgumentNullException.ThrowIfNull(image);
@@ -243,9 +242,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт адрес для ответа.</summary>
-    /// <param name="replyTo">Адрес для ответа.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the reply-to address.</summary>
+    /// <param name="replyTo">The reply-to address.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder ReplyTo(string replyTo)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(replyTo);
@@ -253,10 +252,10 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Добавляет заголовок письма.</summary>
-    /// <param name="name">Имя заголовка.</param>
-    /// <param name="value">Значение заголовка.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Adds a message header.</summary>
+    /// <param name="name">The header name.</param>
+    /// <param name="value">The header value.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Header(string name, string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -266,9 +265,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Переопределяет поля сохранённого шаблона.</summary>
-    /// <param name="contentOverride">Переопределяемые поля.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Overrides fields of a stored template.</summary>
+    /// <param name="contentOverride">The fields to override.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Override(ContentOverride contentOverride)
     {
         ArgumentNullException.ThrowIfNull(contentOverride);
@@ -276,9 +275,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт идентификатор кампании.</summary>
-    /// <param name="campaignId">Идентификатор кампании.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the campaign identifier.</summary>
+    /// <param name="campaignId">The campaign identifier.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder CampaignId(string campaignId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(campaignId);
@@ -286,9 +285,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт описание письма.</summary>
-    /// <param name="description">Описание.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the transmission description.</summary>
+    /// <param name="description">The description.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Description(string description)
     {
         ArgumentNullException.ThrowIfNull(description);
@@ -296,9 +295,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт адрес возврата (envelope FROM).</summary>
-    /// <param name="returnPath">Адрес возврата.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the envelope FROM address.</summary>
+    /// <param name="returnPath">The return path.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder ReturnPath(string returnPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(returnPath);
@@ -306,9 +305,9 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Задаёт домен отслеживания для оборачивания ссылок.</summary>
-    /// <param name="trackingDomain">Подтверждённый домен отслеживания.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the tracking domain used to wrap links.</summary>
+    /// <param name="trackingDomain">A verified tracking domain.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder TrackingDomain(string trackingDomain)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(trackingDomain);
@@ -317,16 +316,16 @@ public sealed class TransmissionBuilder
     }
 
     /// <summary>
-    /// Задаёт данные подстановки уровня письма из произвольного объекта.
+    /// Sets transmission-level substitution data from an arbitrary object.
     /// </summary>
-    /// <param name="value">Объект с данными; имена свойств сохраняются как написаны.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <param name="value">The data; property names are kept exactly as written.</param>
+    /// <returns>The same builder.</returns>
     /// <remarks>
-    /// Использует рефлексию, поэтому в trimmed- и AOT-сборках недоступна.
-    /// Для них есть перегрузка с <see cref="JsonTypeInfo{T}"/>.
+    /// Uses reflection, so it is unavailable in trimmed and AOT builds.
+    /// Those have the <see cref="JsonTypeInfo{T}"/> overload instead.
     /// </remarks>
-    [RequiresUnreferencedCode("Сериализация произвольного объекта использует рефлексию. Используйте перегрузку с JsonTypeInfo<T>.")]
-    [RequiresDynamicCode("Сериализация произвольного объекта использует рефлексию. Используйте перегрузку с JsonTypeInfo<T>.")]
+    [RequiresUnreferencedCode("Serializing an arbitrary object uses reflection. Use the JsonTypeInfo<T> overload instead.")]
+    [RequiresDynamicCode("Serializing an arbitrary object uses reflection. Use the JsonTypeInfo<T> overload instead.")]
     public TransmissionBuilder SubstitutionData(object? value)
     {
         _substitutionData = JsonSerializer.SerializeToNode(value, UserDataOptions);
@@ -334,12 +333,12 @@ public sealed class TransmissionBuilder
     }
 
     /// <summary>
-    /// Задаёт данные подстановки уровня письма. Перегрузка для trimmed- и AOT-сборок.
+    /// Sets transmission-level substitution data. The overload for trimmed and AOT builds.
     /// </summary>
-    /// <typeparam name="T">Тип данных.</typeparam>
-    /// <param name="value">Данные.</param>
-    /// <param name="typeInfo">Метаданные типа из source-gen контекста вызывающего.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <typeparam name="T">The data type.</typeparam>
+    /// <param name="value">The data.</param>
+    /// <param name="typeInfo">Type metadata from the caller's source-generated context.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder SubstitutionData<T>(T value, JsonTypeInfo<T> typeInfo)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
@@ -348,16 +347,16 @@ public sealed class TransmissionBuilder
     }
 
     /// <summary>
-    /// Задаёт метаданные уровня письма из произвольного объекта.
+    /// Sets transmission-level metadata from an arbitrary object.
     /// </summary>
-    /// <param name="value">Объект с метаданными.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <param name="value">The metadata.</param>
+    /// <returns>The same builder.</returns>
     /// <remarks>
-    /// Использует рефлексию, поэтому в trimmed- и AOT-сборках недоступна.
-    /// Для них есть перегрузка с <see cref="JsonTypeInfo{T}"/>.
+    /// Uses reflection, so it is unavailable in trimmed and AOT builds.
+    /// Those have the <see cref="JsonTypeInfo{T}"/> overload instead.
     /// </remarks>
-    [RequiresUnreferencedCode("Сериализация произвольного объекта использует рефлексию. Используйте перегрузку с JsonTypeInfo<T>.")]
-    [RequiresDynamicCode("Сериализация произвольного объекта использует рефлексию. Используйте перегрузку с JsonTypeInfo<T>.")]
+    [RequiresUnreferencedCode("Serializing an arbitrary object uses reflection. Use the JsonTypeInfo<T> overload instead.")]
+    [RequiresDynamicCode("Serializing an arbitrary object uses reflection. Use the JsonTypeInfo<T> overload instead.")]
     public TransmissionBuilder Metadata(object? value)
     {
         _metadata = JsonSerializer.SerializeToNode(value, UserDataOptions);
@@ -365,12 +364,12 @@ public sealed class TransmissionBuilder
     }
 
     /// <summary>
-    /// Задаёт метаданные уровня письма. Перегрузка для trimmed- и AOT-сборок.
+    /// Sets transmission-level metadata. The overload for trimmed and AOT builds.
     /// </summary>
-    /// <typeparam name="T">Тип метаданных.</typeparam>
-    /// <param name="value">Метаданные.</param>
-    /// <param name="typeInfo">Метаданные типа из source-gen контекста вызывающего.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <typeparam name="T">The metadata type.</typeparam>
+    /// <param name="value">The metadata.</param>
+    /// <param name="typeInfo">Type metadata from the caller's source-generated context.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Metadata<T>(T value, JsonTypeInfo<T> typeInfo)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
@@ -378,45 +377,45 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Включает отправку через sandbox-домен.</summary>
-    /// <param name="sandbox">Признак sandbox-отправки.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sends through the sandbox domain.</summary>
+    /// <param name="sandbox">Whether to use the sandbox.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Sandbox(bool sandbox = true)
     {
         _options = _options with { Sandbox = sandbox };
         return this;
     }
 
-    /// <summary>Помечает письмо транзакционным.</summary>
-    /// <param name="transactional">Признак транзакционного письма.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Marks the message as transactional.</summary>
+    /// <param name="transactional">Whether the message is transactional.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder Transactional(bool transactional = true)
     {
         _options = _options with { Transactional = transactional };
         return this;
     }
 
-    /// <summary>Управляет отслеживанием открытий.</summary>
-    /// <param name="enabled">Включить отслеживание.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Controls open tracking.</summary>
+    /// <param name="enabled">Whether to track opens.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder OpenTracking(bool enabled)
     {
         _options = _options with { OpenTracking = enabled };
         return this;
     }
 
-    /// <summary>Управляет отслеживанием переходов по ссылкам.</summary>
-    /// <param name="enabled">Включить отслеживание.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Controls click tracking.</summary>
+    /// <param name="enabled">Whether to track clicks.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder ClickTracking(bool enabled)
     {
         _options = _options with { ClickTracking = enabled };
         return this;
     }
 
-    /// <summary>Задаёт пул IP-адресов для отправки.</summary>
-    /// <param name="ipPool">Идентификатор пула.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Sets the IP pool to send through.</summary>
+    /// <param name="ipPool">The pool identifier.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder IpPool(string ipPool)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ipPool);
@@ -424,18 +423,18 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Откладывает отправку до указанного момента.</summary>
-    /// <param name="startTime">Время отправки; не далее трёх суток вперёд.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Defers sending until the given moment.</summary>
+    /// <param name="startTime">When to send; no more than three days ahead.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder StartTime(DateTimeOffset startTime)
     {
         _options = _options with { StartTime = startTime };
         return this;
     }
 
-    /// <summary>Заменяет параметры отправки целиком.</summary>
-    /// <param name="options">Параметры отправки.</param>
-    /// <returns>Тот же построитель.</returns>
+    /// <summary>Replaces the sending options wholesale.</summary>
+    /// <param name="options">The sending options.</param>
+    /// <returns>The same builder.</returns>
     public TransmissionBuilder WithOptions(TransmissionOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -443,10 +442,10 @@ public sealed class TransmissionBuilder
         return this;
     }
 
-    /// <summary>Собирает запрос.</summary>
-    /// <returns>Готовый запрос на отправку.</returns>
+    /// <summary>Assembles the request.</summary>
+    /// <returns>The finished send request.</returns>
     /// <exception cref="InvalidOperationException">
-    /// Не заданы получатели или содержимое, либо содержимое задано двумя способами сразу.
+    /// Recipients or content are missing, or content was given in more than one form.
     /// </exception>
     public TransmissionRequest Build()
     {
@@ -478,7 +477,7 @@ public sealed class TransmissionBuilder
             if (_recipients.Count > 0 || _cc.Count > 0 || _bcc.Count > 0)
             {
                 throw new InvalidOperationException(
-                    "Получатели заданы дважды: и сохранённым списком через RecipientList(), и явно через To()/Cc()/Bcc().");
+                    "Recipients were given twice: both as a stored list via RecipientList() and explicitly via To()/Cc()/Bcc().");
             }
 
             return RecipientSet.StoredList(_recipientListId);
@@ -486,7 +485,7 @@ public sealed class TransmissionBuilder
 
         if (_recipients.Count == 0)
         {
-            throw new InvalidOperationException("Не задан ни один получатель: вызовите To() или RecipientList().");
+            throw new InvalidOperationException("No recipients were given: call To() or RecipientList().");
         }
 
         if (_cc.Count == 0 && _bcc.Count == 0)
@@ -494,7 +493,7 @@ public sealed class TransmissionBuilder
             return RecipientSet.Inline([.. _recipients]);
         }
 
-        // Копии в SparkPost — это обычные получатели с подменённым заголовком To.
+        // In SparkPost, copies are ordinary recipients with an overridden To header.
         var headerTo = string.Join(", ", _recipients.Select(recipient => FormatAddress(recipient.Address)));
 
         var all = new List<Recipient>(_recipients.Count + _cc.Count + _bcc.Count);
@@ -514,17 +513,17 @@ public sealed class TransmissionBuilder
 
         if (hasInline)
         {
-            forms.Add("inline-содержимое");
+            forms.Add("inline content");
         }
 
         if (_templateId is not null)
         {
-            forms.Add("шаблон");
+            forms.Add("a stored template");
         }
 
         if (_abTestId is not null)
         {
-            forms.Add("A/B-тест");
+            forms.Add("an A/B test");
         }
 
         if (_rfc822 is not null)
@@ -535,18 +534,18 @@ public sealed class TransmissionBuilder
         if (forms.Count == 0)
         {
             throw new InvalidOperationException(
-                "Не задано содержимое письма: вызовите Html()/Text(), Template(), AbTest() или RawRfc822().");
+                "No content was given: call Html()/Text(), Template(), AbTest() or RawRfc822().");
         }
 
         if (forms.Count > 1)
         {
             throw new InvalidOperationException(
-                $"Содержимое задано несколькими способами сразу ({string.Join(" и ", forms)}), а допустим только один.");
+                $"Content was given in several forms at once ({string.Join(" and ", forms)}), but only one is allowed.");
         }
 
         if (hasInline && _from is null)
         {
-            throw new InvalidOperationException("Не задан отправитель: вызовите From().");
+            throw new InvalidOperationException("No sender was given: call From().");
         }
 
         var headers = _headers;

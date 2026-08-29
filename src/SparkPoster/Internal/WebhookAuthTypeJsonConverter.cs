@@ -4,13 +4,12 @@ using System.Text.Json.Serialization;
 namespace SparkPoster.Internal;
 
 /// <summary>
-/// Значения <c>auth_type</c> пишутся в нижнем регистре. Отдельный конвертер нужен потому,
-/// что на net8.0 политику именования для перечисления нельзя задать атрибутом.
+/// The <c>auth_type</c> values are lower case. A dedicated converter is needed because on
+/// net8.0 an enum naming policy cannot be set through an attribute.
 /// </summary>
 /// <remarks>
-/// Незнакомое значение не роняет разбор, а превращается в
-/// <see cref="WebhookAuthType.Unknown"/>: список способов авторизации на стороне
-/// SparkPost может пополниться.
+/// An unfamiliar value does not break parsing but turns into
+/// <see cref="WebhookAuthType.Unknown"/>: SparkPost may add authentication schemes.
 /// </remarks>
 internal sealed class WebhookAuthTypeJsonConverter : JsonConverter<WebhookAuthType>
 {
@@ -33,7 +32,7 @@ internal sealed class WebhookAuthTypeJsonConverter : JsonConverter<WebhookAuthTy
             WebhookAuthType.Basic => "basic",
             WebhookAuthType.OAuth2 => "oauth2",
             _ => throw new JsonException(
-                $"Способ авторизации {value} нельзя отправить в SparkPost: это значение получено от сервера и библиотеке неизвестно."),
+                $"The {value} authentication scheme cannot be sent to SparkPost: the value came from the server and this library does not know it."),
         };
 
         writer.WriteStringValue(text);

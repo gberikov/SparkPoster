@@ -5,12 +5,12 @@ using System.Text.Json.Serialization;
 namespace SparkPoster.Internal;
 
 /// <summary>
-/// Читает строковое поле, которое SparkPost иногда отдаёт числом или булевым значением.
+/// Reads a string field that SparkPost sometimes returns as a number or a boolean.
 /// </summary>
 /// <remarks>
-/// Пример из документации: код ошибки транзакции приходит строкой (<c>"1400"</c>),
-/// а код ошибки вебхука — числом (<c>400</c>). Без этого конвертера разбор тела ошибки
-/// падал бы, и до вызывающего не доехало бы ни одного сообщения.
+/// Straight from the documentation: a transmission error code arrives as a string
+/// (<c>"1400"</c>) while a webhook error code arrives as a number (<c>400</c>). Without this
+/// converter the error body would fail to parse and not a single message would reach the caller.
 /// </remarks>
 internal sealed class FlexibleStringJsonConverter : JsonConverter<string?>
 {
@@ -24,7 +24,7 @@ internal sealed class FlexibleStringJsonConverter : JsonConverter<string?>
                 : reader.GetDouble().ToString(CultureInfo.InvariantCulture),
             JsonTokenType.True => "true",
             JsonTokenType.False => "false",
-            _ => throw new JsonException($"Строковое поле пришло как {reader.TokenType}."),
+            _ => throw new JsonException($"A string field arrived as {reader.TokenType}."),
         };
 
     public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)

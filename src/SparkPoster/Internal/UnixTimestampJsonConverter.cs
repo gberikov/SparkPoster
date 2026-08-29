@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 namespace SparkPoster.Internal;
 
 /// <summary>
-/// Читает момент события. SparkPost отдаёт его секундами эпохи Unix — обычно строкой
-/// (<c>"1460989507"</c>), иногда числом; отдельные поля приходят в ISO 8601.
-/// Конвертер принимает все три формы.
+/// Reads the moment of an event. SparkPost reports it as Unix epoch seconds — usually as a
+/// string (<c>"1460989507"</c>), sometimes as a number; a few fields arrive as ISO 8601.
+/// All three shapes are accepted.
 /// </summary>
 internal sealed class UnixTimestampJsonConverter : JsonConverter<DateTimeOffset?>
 {
@@ -34,7 +34,7 @@ internal sealed class UnixTimestampJsonConverter : JsonConverter<DateTimeOffset?
                     : DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
             default:
-                throw new JsonException($"Момент события пришёл как {reader.TokenType}.");
+                throw new JsonException($"An event timestamp arrived as {reader.TokenType}.");
         }
     }
 

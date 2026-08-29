@@ -2,32 +2,32 @@ using System.Net;
 
 namespace SparkPoster;
 
-/// <summary>Базовое исключение библиотеки.</summary>
+/// <summary>The base exception for this library.</summary>
 public class SparkPostException : Exception
 {
-    /// <summary>Создаёт исключение с сообщением.</summary>
-    /// <param name="message">Текст сообщения.</param>
+    /// <summary>Creates an exception with a message.</summary>
+    /// <param name="message">The message text.</param>
     public SparkPostException(string message) : base(message)
     {
     }
 
-    /// <summary>Создаёт исключение с сообщением и внутренней ошибкой.</summary>
-    /// <param name="message">Текст сообщения.</param>
-    /// <param name="innerException">Внутреннее исключение.</param>
+    /// <summary>Creates an exception with a message and an inner exception.</summary>
+    /// <param name="message">The message text.</param>
+    /// <param name="innerException">The inner exception.</param>
     public SparkPostException(string message, Exception innerException) : base(message, innerException)
     {
     }
 }
 
 /// <summary>
-/// Ответ SparkPost с кодом ошибки. Различать частные случаи следует по <see cref="StatusCode"/>.
+/// SparkPost answered with an error status. Tell the cases apart by <see cref="StatusCode"/>.
 /// </summary>
 public class SparkPostApiException : SparkPostException
 {
-    /// <summary>Создаёт исключение по ответу API.</summary>
-    /// <param name="statusCode">HTTP-код ответа.</param>
-    /// <param name="errors">Разобранные ошибки из тела ответа.</param>
-    /// <param name="rawBody">Тело ответа как есть.</param>
+    /// <summary>Creates an exception from an API response.</summary>
+    /// <param name="statusCode">The HTTP status code.</param>
+    /// <param name="errors">Errors parsed from the response body.</param>
+    /// <param name="rawBody">The response body as received.</param>
     public SparkPostApiException(HttpStatusCode statusCode, IReadOnlyList<SparkPostError> errors, string? rawBody)
         : base(BuildMessage(statusCode, errors))
     {
@@ -36,18 +36,19 @@ public class SparkPostApiException : SparkPostException
         RawBody = rawBody;
     }
 
-    /// <summary>HTTP-код ответа.</summary>
+    /// <summary>The HTTP status code of the response.</summary>
     public HttpStatusCode StatusCode { get; }
 
-    /// <summary>Ошибки из тела ответа. Пустой список, если тело не было разобрано.</summary>
+    /// <summary>Errors from the response body. Empty when the body could not be parsed.</summary>
     public IReadOnlyList<SparkPostError> Errors { get; }
 
     /// <summary>
-    /// Тело ответа как есть — пригодится, когда сервер вернул не JSON (заглушка прокси, HTML-страница).
+    /// The response body as received — useful when the server replied with something other
+    /// than JSON, such as a proxy stub or an HTML page.
     /// </summary>
     /// <remarks>
-    /// Может содержать персональные данные: в ошибках валидации SparkPost повторяет адреса получателей.
-    /// Не выгружайте это поле в логи не подумав.
+    /// May contain personal data: validation errors echo recipient addresses back.
+    /// Think before dumping this into your logs.
     /// </remarks>
     public string? RawBody { get; }
 
@@ -57,25 +58,25 @@ public class SparkPostApiException : SparkPostException
         var detail = first?.Description ?? first?.Message;
 
         return detail is null
-            ? $"SparkPost вернул {(int)statusCode} {statusCode}."
-            : $"SparkPost вернул {(int)statusCode} {statusCode}: {detail}";
+            ? $"SparkPost returned {(int)statusCode} {statusCode}."
+            : $"SparkPost returned {(int)statusCode} {statusCode}: {detail}";
     }
 }
 
 /// <summary>
-/// Превышен лимит запросов (429) или лимит отправки (420).
+/// The request rate limit (429) or the sending limit (420) was exceeded.
 /// </summary>
 /// <remarks>
-/// Выделено в отдельный тип ради <see cref="RetryAfter"/>: этих данных нет больше нигде,
-/// и именно на них опираются политики повторов.
+/// A separate type exists for the sake of <see cref="RetryAfter"/>: that value appears
+/// nowhere else, and retry policies are built on it.
 /// </remarks>
 public sealed class SparkPostRateLimitException : SparkPostApiException
 {
-    /// <summary>Создаёт исключение по ответу API.</summary>
-    /// <param name="statusCode">HTTP-код ответа (429 или 420).</param>
-    /// <param name="errors">Разобранные ошибки из тела ответа.</param>
-    /// <param name="rawBody">Тело ответа как есть.</param>
-    /// <param name="retryAfter">Значение заголовка <c>Retry-After</c>, если он был.</param>
+    /// <summary>Creates an exception from an API response.</summary>
+    /// <param name="statusCode">The HTTP status code (429 or 420).</param>
+    /// <param name="errors">Errors parsed from the response body.</param>
+    /// <param name="rawBody">The response body as received.</param>
+    /// <param name="retryAfter">The value of the <c>Retry-After</c> header, when present.</param>
     public SparkPostRateLimitException(
         HttpStatusCode statusCode,
         IReadOnlyList<SparkPostError> errors,
@@ -86,6 +87,6 @@ public sealed class SparkPostRateLimitException : SparkPostApiException
         RetryAfter = retryAfter;
     }
 
-    /// <summary>Сколько ждать до следующей попытки, если сервер это сообщил.</summary>
+    /// <summary>How long to wait before retrying, when the server said so.</summary>
     public TimeSpan? RetryAfter { get; }
 }
