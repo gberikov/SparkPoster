@@ -20,10 +20,26 @@ commit messages, and technical terms as-is.
 | `hotfix/*` | Срочные правки от `master` |
 
 - **Прямые коммиты в `master` и `develop` запрещены** — только через ветки и merge.
+- Каждая ветка пушится на `origin` (`https://github.com/gberikov/SparkPoster`, приватный).
 - Теги версий — **без префикса**: `0.1.0`, а не `v0.1.0` (совпадает с дефолтом MinVer,
-  который берёт версию пакета из тега).
+  который берёт версию пакета из тега). Тег ставится на `master` при релизе через `release/*`.
 - Конфигурация лежит в `.git/config` (`gitflow.*`), команды `git flow feature start <name>` и т.п.
   работают из коробки; вручную то же самое — `git checkout -b feature/<name> develop`.
+
+### Защита master и тегов
+
+GitHub-side protection (rulesets и классический branch protection) для **приватных**
+репозиториев требует GitHub Pro — API отвечает `403 Upgrade to GitHub Pro or make this
+repository public`. Поэтому защита локальная, хуком `.githooks/pre-push`: он запрещает
+удаление и не-fast-forward пуш для `master` и всех тегов.
+
+```bash
+git config core.hooksPath .githooks   # выполнить заново после каждого клонирования
+```
+
+Осознанный обход — `git push --no-verify`. Когда репозиторий станет публичным
+(решение №1: OSS позже), защиту надо перенести на сторону GitHub — там она бесплатна
+и, в отличие от хука, действует на всех.
 
 ## Коммиты
 
