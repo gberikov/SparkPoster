@@ -39,6 +39,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `start_time` is sent with whole-second precision (`YYYY-MM-DDTHH:MM:SS+-HH:MM`, as SparkPost
   documents it). A `DateTimeOffset` with fractional seconds — `DateTimeOffset.UtcNow.AddHours(2)`,
   say — used to go out with seven fractional digits.
+- `UpsertManyAsync` sends only `recipient`, `type`, `description` and `list_id` per entry — the
+  fields the bulk endpoint documents. An entry read back through `GetAsync` or `SearchAsync` used
+  to go out with `source`, `created`, `updated` and `subaccount_id` attached.
 
 ### Added
 

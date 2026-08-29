@@ -54,6 +54,62 @@ public sealed class SuppressionListTests
     }
 
     [Fact]
+    public async Task Bulk_upsert_strips_read_only_fields()
+    {
+        var (client, handler) = CreateClient("""{"results":{"message":"Suppression list successfully updated"}}""");
+
+        await client.SuppressionList.UpsertManyAsync(
+            [
+                new SuppressionEntry
+                {
+                    Recipient = "a@example.com",
+                    Type = SuppressionTypes.Transactional,
+                    Description = "bounced",
+                    Source = "Bounce Rule",
+                    Created = DateTimeOffset.UnixEpoch,
+                    Updated = DateTimeOffset.UnixEpoch,
+                    SubaccountId = 7,
+                },
+                new SuppressionEntry
+                {
+                    Recipient = "b@example.com",
+                    Type = SuppressionTypes.NonTransactional,
+                    Description = "unsubscribed from the newsletter",
+                    ListId = "newsletter",
+                    Source = "Manually Added",
+                    Created = DateTimeOffset.UnixEpoch,
+                    Updated = DateTimeOffset.UnixEpoch,
+                    SubaccountId = 7,
+                },
+            ],
+            TestContext.Current.CancellationToken);
+
+        var recipients = JsonNode.Parse(handler.LastBody!)!["recipients"]!.AsArray();
+
+        Assert.Equal<string>(
+            ["recipient", "type", "description"],
+            recipients[0]!.AsObject().Select(property => property.Key));
+        Assert.Equal<string>(
+            ["recipient", "type", "description", "list_id"],
+            recipients[1]!.AsObject().Select(property => property.Key));
+    }
+
+    [Fact]
+    public async Task Bulk_upsert_rejects_a_blank_recipient()
+    {
+        var (client, handler) = CreateClient("""{"results":{"message":"Suppression list successfully updated"}}""");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => client.SuppressionList.UpsertManyAsync(
+            [
+                new SuppressionEntry { Recipient = "a@example.com", Type = SuppressionTypes.Transactional },
+                new SuppressionEntry { Recipient = " ", Type = SuppressionTypes.Transactional },
+            ],
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
     public async Task Get_returns_one_entry_per_kind()
     {
         var (client, _) = CreateClient(
