@@ -22,7 +22,7 @@ internal sealed class WebhooksResource : IWebhooks
         request.Content = JsonContent.Create(webhook, SparkPostJsonContext.Default.WebhookRequest);
 
         var created = await _requester
-            .SendAndReadAsync(request, SparkPostJsonContext.Default.WebhookIdEnvelope, cancellationToken)
+            .SendAndReadAsync(request, SparkPostJsonContext.Default.CreatedResourceEnvelope, cancellationToken)
             .ConfigureAwait(false);
 
         return created.Id;
