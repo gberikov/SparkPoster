@@ -29,9 +29,17 @@ internal sealed class UnixTimestampJsonConverter : JsonConverter<DateTimeOffset?
                     return null;
                 }
 
-                return long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds)
-                    ? DateTimeOffset.FromUnixTimeSeconds(seconds)
-                    : DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+                if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds))
+                {
+                    return DateTimeOffset.FromUnixTimeSeconds(seconds);
+                }
+
+                // A JsonException — not the FormatException DateTimeOffset.Parse would throw — so that
+                // the reader's fallback catches it and reports the event as unknown instead of taking
+                // down the whole batch.
+                return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var moment)
+                    ? moment
+                    : throw new JsonException($"An event timestamp arrived as '{text}', which is neither Unix seconds nor ISO 8601.");
 
             default:
                 throw new JsonException($"An event timestamp arrived as {reader.TokenType}.");

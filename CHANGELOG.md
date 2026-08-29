@@ -27,6 +27,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
   endpoint written as `https://host/api/v1` used to send every request to `https://host/api/`.
 - A webhook body that is not valid JSON is answered 400 rather than 500, so the logs tell
   "they sent garbage" apart from "my handler threw".
+- A webhook event whose `timestamp` is neither Unix seconds nor ISO 8601 no longer throws out of
+  the parser (and, through `MapSparkPostWebhook`, no longer turns into a 500 that makes SparkPost
+  retry the batch for 8 hours). It is reported as an `UnknownSparkPostEvent` with the parse error
+  in `Extra`, like any other unparsable event.
 
 ### Added
 

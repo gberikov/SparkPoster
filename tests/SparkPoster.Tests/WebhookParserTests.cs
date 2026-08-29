@@ -44,6 +44,42 @@ public sealed class WebhookParserTests
     }
 
     [Fact]
+    public void Unparsable_timestamp_does_not_break_the_batch()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"message_event":{"type":"bounce","timestamp":"yesterday"}}}]""");
+
+        var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
+
+        Assert.Equal(SparkPostEventTypes.Bounce, unknown.Type);
+        Assert.NotNull(unknown.Raw);
+        Assert.Contains("sparkposter_parse_error", unknown.Extra!);
+    }
+
+    [Fact]
+    public void Unparsable_timestamp_leaves_the_other_events_intact()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """
+            [
+              {"msys":{"message_event":{"type":"bounce","timestamp":"yesterday"}}},
+              {"msys":{"message_event":{"type":"delivery","timestamp":"1460989507"}}}
+            ]
+            """);
+
+        Assert.Collection(
+            events,
+            e => Assert.IsType<UnknownSparkPostEvent>(e),
+            e =>
+            {
+                var delivery = Assert.IsType<MessageEvent>(e);
+
+                Assert.Equal(SparkPostEventTypes.Delivery, delivery.Type);
+                Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1460989507), delivery.Timestamp);
+            });
+    }
+
+    [Fact]
     public void Click_is_parsed_into_TrackEvent()
     {
         var events = SparkPostWebhookParser.Parse(
