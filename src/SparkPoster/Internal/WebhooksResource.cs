@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -35,9 +34,12 @@ internal sealed class WebhooksResource : IWebhooks
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
+        var query = new QueryBuilder();
+        query.Add("timezone", timezone);
+
         using var request = _requester.CreateRequest(
             HttpMethod.Get,
-            $"webhooks/{Uri.EscapeDataString(id)}{TimezoneQuery(timezone)}");
+            $"webhooks/{Uri.EscapeDataString(id)}{query}");
 
         return await _requester
             .SendAndReadAsync(request, SparkPostJsonContext.Default.WebhookEnvelope, cancellationToken)
@@ -48,7 +50,10 @@ internal sealed class WebhooksResource : IWebhooks
         string? timezone = null,
         CancellationToken cancellationToken = default)
     {
-        using var request = _requester.CreateRequest(HttpMethod.Get, $"webhooks{TimezoneQuery(timezone)}");
+        var query = new QueryBuilder();
+        query.Add("timezone", timezone);
+
+        using var request = _requester.CreateRequest(HttpMethod.Get, $"webhooks{query}");
 
         return await _requester
             .SendAndReadAsync(request, SparkPostJsonContext.Default.WebhookListEnvelope, cancellationToken)
@@ -98,7 +103,8 @@ internal sealed class WebhooksResource : IWebhooks
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
-        var query = limit is null ? string.Empty : $"?limit={limit.Value.ToString(CultureInfo.InvariantCulture)}";
+        var query = new QueryBuilder();
+        query.Add("limit", limit);
 
         using var request = _requester.CreateRequest(
             HttpMethod.Get,
@@ -120,20 +126,11 @@ internal sealed class WebhooksResource : IWebhooks
         IEnumerable<string>? events = null,
         CancellationToken cancellationToken = default)
     {
-        var query = events is null ? string.Empty : BuildEventsQuery(events);
+        var query = new QueryBuilder();
+        query.AddList("events", events is null ? null : [.. events]);
 
         using var request = _requester.CreateRequest(HttpMethod.Get, $"webhooks/events/samples{query}");
 
         return await _requester.SendAndReadRawAsync(request, cancellationToken).ConfigureAwait(false);
     }
-
-    private static string BuildEventsQuery(IEnumerable<string> events)
-    {
-        var list = string.Join(',', events);
-
-        return string.IsNullOrEmpty(list) ? string.Empty : $"?events={Uri.EscapeDataString(list)}";
-    }
-
-    private static string TimezoneQuery(string? timezone) =>
-        string.IsNullOrWhiteSpace(timezone) ? string.Empty : $"?timezone={Uri.EscapeDataString(timezone)}";
 }

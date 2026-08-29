@@ -35,9 +35,27 @@ internal sealed class SuppressionListResource : ISuppressionList
     {
         ArgumentNullException.ThrowIfNull(entries);
 
+        // Only the fields the endpoint documents; what the API filled in on a read stays behind.
+        // Materialized before the request, so a bad address in the batch stops it before it is sent.
+        SuppressionUpsert[] recipients =
+        [
+            .. entries.Select(entry =>
+            {
+                ArgumentException.ThrowIfNullOrWhiteSpace(entry.Recipient);
+
+                return new SuppressionUpsert
+                {
+                    Recipient = entry.Recipient,
+                    Type = entry.Type,
+                    Description = entry.Description,
+                    ListId = entry.ListId,
+                };
+            }),
+        ];
+
         using var request = _requester.CreateRequest(HttpMethod.Put, Path);
         request.Content = JsonContent.Create(
-            new SuppressionBulkUpsert { Recipients = [.. entries] },
+            new SuppressionBulkUpsert { Recipients = recipients },
             SparkPostJsonContext.Default.SuppressionBulkUpsert);
 
         await _requester.SendIgnoringResultAsync(request, cancellationToken).ConfigureAwait(false);
@@ -87,7 +105,7 @@ internal sealed class SuppressionListResource : ISuppressionList
         return new SuppressionPage
         {
             Entries = document["results"].Deserialize(SparkPostJsonContext.Default.IReadOnlyListSuppressionEntry) ?? [],
-            TotalCount = (int?)document["total_count"] ?? 0,
+            TotalCount = document["total_count"]?.Deserialize(SparkPostJsonContext.Default.Int32) ?? 0,
             NextCursor = QueryBuilder.ExtractNextCursor(document["links"]),
         };
     }
@@ -132,14 +150,8 @@ internal sealed class SuppressionListResource : ISuppressionList
             return builder.ToString();
         }
 
-        builder.AddTimestamp("from", query.From);
-        builder.AddTimestamp("to", query.To);
-
-        if (query.From is not null || query.To is not null)
-        {
-            builder.Add("timezone", "UTC");
-        }
-
+        builder.AddOffsetTimestamp("from", query.From);
+        builder.AddOffsetTimestamp("to", query.To);
         builder.Add("domain", query.Domain);
         builder.AddList("sources", query.Sources);
         builder.AddList("types", query.Types);
@@ -152,9 +164,12 @@ internal sealed class SuppressionListResource : ISuppressionList
     }
 }
 
-/// <summary>The body of a single-address upsert; the address itself travels in the path.</summary>
+/// <summary>One upserted entry: the whole body of a single-address upsert, one element of a bulk one.</summary>
 internal sealed record SuppressionUpsert
 {
+    /// <summary>Only sent in the bulk form; the single form carries the address in the path.</summary>
+    public string? Recipient { get; init; }
+
     public string? Type { get; init; }
 
     public string? Description { get; init; }
@@ -165,5 +180,5 @@ internal sealed record SuppressionUpsert
 /// <summary>The body of a bulk upsert.</summary>
 internal sealed record SuppressionBulkUpsert
 {
-    public required IReadOnlyList<SuppressionEntry> Recipients { get; init; }
+    public required IReadOnlyList<SuppressionUpsert> Recipients { get; init; }
 }

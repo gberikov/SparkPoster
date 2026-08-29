@@ -31,7 +31,8 @@ internal sealed class TemplatesResource : ITemplates
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
-        var query = draft is null ? string.Empty : $"?draft={Bool(draft.Value)}";
+        var query = new QueryBuilder();
+        query.Add("draft", draft);
 
         using var request = _requester.CreateRequest(HttpMethod.Get, $"templates/{Uri.EscapeDataString(id)}{query}");
 
@@ -45,19 +46,9 @@ internal sealed class TemplatesResource : ITemplates
         bool? sharedWithSubaccounts = null,
         CancellationToken cancellationToken = default)
     {
-        var query = new StringBuilder();
-
-        if (draft is not null)
-        {
-            query.Append("?draft=").Append(Bool(draft.Value));
-        }
-
-        if (sharedWithSubaccounts is not null)
-        {
-            query.Append(query.Length == 0 ? '?' : '&')
-                .Append("shared_with_subaccounts=")
-                .Append(Bool(sharedWithSubaccounts.Value));
-        }
+        var query = new QueryBuilder();
+        query.Add("draft", draft);
+        query.Add("shared_with_subaccounts", sharedWithSubaccounts);
 
         using var request = _requester.CreateRequest(HttpMethod.Get, $"templates{query}");
 
@@ -75,7 +66,9 @@ internal sealed class TemplatesResource : ITemplates
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentNullException.ThrowIfNull(definition);
 
-        var query = updatePublished ? "?update_published=true" : string.Empty;
+        // Only the affirmative travels: update_published=false is what the endpoint does anyway.
+        var query = new QueryBuilder();
+        query.Add("update_published", updatePublished ? true : null);
 
         using var request = _requester.CreateRequest(HttpMethod.Put, $"templates/{Uri.EscapeDataString(id)}{query}");
         request.Content = JsonContent.Create(definition, SparkPostJsonContext.Default.TemplateRequest);
@@ -114,19 +107,20 @@ internal sealed class TemplatesResource : ITemplates
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
-        var query = draft is null ? string.Empty : $"?draft={Bool(draft.Value)}";
+        var query = new QueryBuilder();
+        query.Add("draft", draft);
 
         using var request = _requester.CreateRequest(
             HttpMethod.Post,
             $"templates/{Uri.EscapeDataString(id)}/preview{query}");
 
-        var body = new JsonObject { ["substitution_data"] = substitutionData ?? new JsonObject() };
+        // DeepClone: a JsonNode has a single parent, so a node taken from the caller's own tree
+        // cannot be attached here directly.
+        var body = new JsonObject { ["substitution_data"] = substitutionData?.DeepClone() ?? new JsonObject() };
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
         return await _requester
             .SendAndReadAsync(request, SparkPostJsonContext.Default.TemplateContentEnvelope, cancellationToken)
             .ConfigureAwait(false);
     }
-
-    private static string Bool(bool value) => value ? "true" : "false";
 }

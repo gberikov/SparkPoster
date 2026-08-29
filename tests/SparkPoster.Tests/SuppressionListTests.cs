@@ -54,6 +54,62 @@ public sealed class SuppressionListTests
     }
 
     [Fact]
+    public async Task Bulk_upsert_strips_read_only_fields()
+    {
+        var (client, handler) = CreateClient("""{"results":{"message":"Suppression list successfully updated"}}""");
+
+        await client.SuppressionList.UpsertManyAsync(
+            [
+                new SuppressionEntry
+                {
+                    Recipient = "a@example.com",
+                    Type = SuppressionTypes.Transactional,
+                    Description = "bounced",
+                    Source = "Bounce Rule",
+                    Created = DateTimeOffset.UnixEpoch,
+                    Updated = DateTimeOffset.UnixEpoch,
+                    SubaccountId = 7,
+                },
+                new SuppressionEntry
+                {
+                    Recipient = "b@example.com",
+                    Type = SuppressionTypes.NonTransactional,
+                    Description = "unsubscribed from the newsletter",
+                    ListId = "newsletter",
+                    Source = "Manually Added",
+                    Created = DateTimeOffset.UnixEpoch,
+                    Updated = DateTimeOffset.UnixEpoch,
+                    SubaccountId = 7,
+                },
+            ],
+            TestContext.Current.CancellationToken);
+
+        var recipients = JsonNode.Parse(handler.LastBody!)!["recipients"]!.AsArray();
+
+        Assert.Equal<string>(
+            ["recipient", "type", "description"],
+            recipients[0]!.AsObject().Select(property => property.Key));
+        Assert.Equal<string>(
+            ["recipient", "type", "description", "list_id"],
+            recipients[1]!.AsObject().Select(property => property.Key));
+    }
+
+    [Fact]
+    public async Task Bulk_upsert_rejects_a_blank_recipient()
+    {
+        var (client, handler) = CreateClient("""{"results":{"message":"Suppression list successfully updated"}}""");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => client.SuppressionList.UpsertManyAsync(
+            [
+                new SuppressionEntry { Recipient = "a@example.com", Type = SuppressionTypes.Transactional },
+                new SuppressionEntry { Recipient = " ", Type = SuppressionTypes.Transactional },
+            ],
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
     public async Task Get_returns_one_entry_per_kind()
     {
         var (client, _) = CreateClient(
@@ -115,6 +171,26 @@ public sealed class SuppressionListTests
     }
 
     [Fact]
+    public async Task Search_dates_carry_seconds_and_an_offset_and_no_timezone_parameter()
+    {
+        var (client, handler) = CreateClient("""{"results":[],"total_count":0,"links":{}}""");
+
+        await client.SuppressionList.SearchPageAsync(
+            new SuppressionQuery
+            {
+                From = new DateTimeOffset(2026, 8, 1, 12, 0, 0, TimeSpan.FromHours(6)),
+                To = new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero),
+            },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var query = handler.LastRequest!.RequestUri!.Query;
+
+        Assert.Contains("from=2026-08-01T06%3A00%3A00%2B00%3A00", query, StringComparison.Ordinal);
+        Assert.Contains("to=2026-08-02T00%3A00%3A00%2B00%3A00", query, StringComparison.Ordinal);
+        Assert.DoesNotContain("timezone", query, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Search_walks_every_page()
     {
         var handler = FakeHttpMessageHandler.ReturningSequence(
@@ -132,6 +208,18 @@ public sealed class SuppressionListTests
 
         Assert.Equal(["a@example.com", "b@example.com"], recipients);
         Assert.Equal(2, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task Total_count_is_read_when_it_arrives_as_a_string()
+    {
+        var (client, _) = CreateClient(
+            """{"results":[{"recipient":"a@example.com"}],"total_count":"3","links":{}}""");
+
+        var page = await client.SuppressionList.SearchPageAsync(
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, page.TotalCount);
     }
 
     [Fact]

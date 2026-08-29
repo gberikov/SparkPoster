@@ -40,7 +40,7 @@ async/await, максимальное покрытие API.
 | 11a | Ретраи | Своих нет; `AddSparkPost()` возвращает `IHttpClientBuilder`, потребитель вешает `.AddStandardResilienceHandler()` | Backoff, jitter и circuit breaker уже написаны и оттестированы в пакете Microsoft |
 | 11b | Идемпотентность | `Idempotency-Key` генерируем автоматически на каждый `SendAsync`, если не задан явно | `DelegatingHandler` повторяет **тот же** `HttpRequestMessage` → внешний ретрай становится безопасным без единой настройки. Без ключа resilience-handler на 5xx отправит письмо дважды |
 | 12a | События | Типизированная иерархия + `UnknownSparkPostEvent` + `JsonExtensionData`; неизвестный тип **никогда не бросает** | Новый тип события не должен ронять эндпоинт: SparkPost начнёт ретраить весь батч, включая обработанное |
-| 12b | AspNetCore | `app.MapSparkPostWebhook(path, handler)` + проверка basic-auth/секретного заголовка | Исключение из обработчика → 500 (SparkPost повторит), успех → 200. Буферизация в `Channel` по умолчанию молча превращает at-least-once в at-most-once |
+| 12b | AspNetCore | `app.MapSparkPostWebhook(path, handler, options)` + проверка basic-auth/секретного заголовка; `options` обязателен (см. §8) | Исключение из обработчика → 500 (SparkPost повторит), успех → 200. Буферизация в `Channel` по умолчанию молча превращает at-least-once в at-most-once |
 | 13a | JSON | Source-generated `JsonSerializerContext`, `IsAotCompatible` | Дёшево сделать сразу, дорого прикрутить потом. Кастомный конвертер для событий нужен в любом случае: дискриминатор лежит в имени внешнего свойства `msys.message_event` |
 | 13b | Enum'ы | `enum` там, где значение придумываем мы; `string` + `const`-константы там, где сервер | Строгий enum падает на первом новом значении и роняет весь батч |
 | 14 | Пагинация | И `GetPageAsync(query, cursor, ct)`, и `IAsyncEnumerable` поверх него | Продакшн-сценарий «продолжить с чекпоинта» требует явного курсора; обёртка — ~15 строк без состояния |
@@ -92,7 +92,12 @@ var page = await client.Events.GetPageAsync(query, cursor, ct);
 await foreach (var e in client.Events.SearchAsync(query, ct)) { }
 
 // приём вебхуков
-app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
+app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { },
+    new SparkPostWebhookOptions
+    {
+        SecretHeaderName = "X-Webhook-Secret",
+        SecretHeaderValue = secret
+    });
 ```
 
 ## 4. Порядок работ
@@ -134,6 +139,11 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
   Без второго разбор тела ошибки падал молча — вскрылось тестом.
 - **Форма `links`.** У курсорной пагинации встречается и объект с `next`, и массив `rel`/`href`.
   Читаются обе.
+- **Формат `start_time`.** Документирован как `YYYY-MM-DDTHH:MM:SS+-HH:MM` — целые секунды с
+  офсетом. Обычный `DateTimeOffset` сериализуется с дробной частью (у `DateTimeOffset.UtcNow`
+  она есть всегда), поэтому на свойстве стоит отдельный конвертер: он отбрасывает доли секунды
+  (именно отбрасывает, не округляет) и сохраняет офсет вызывающего. Проверка на живом аккаунте
+  всё ещё не сделана, но повода отвергнуть запрос библиотека серверу больше не даёт.
 
 Осталось проверить на живом аккаунте:
 
@@ -141,7 +151,6 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
   и `GET /webhooks/events/samples`; типизировано только употребимое, остальное лежит в `Extra`.
 - Поведение 409 с кодами `1600` (тот же ключ, другое тело — ошибка вызывающего) и
   `1601` (запрос ещё выполняется — повторяемо).
-- Формат `start_time` у отложенной транзакции: отправляем ISO 8601 с офсетом.
 
 ## 6. Отложено сознательно
 
@@ -166,3 +175,26 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
 - Sandbox-домен `sparkpostbox.com` — **5 писем за всё время жизни аккаунта**. Интеграционные
   тесты гоняем на неотправляющих эндпоинтах; реальная отправка — один ручной smoke-тест, не в CI.
 - Интеграционный проект целиком пропускается без переменной `SPARKPOST_API_KEY`.
+
+## 8. Ревью перед 0.2.0
+
+Найдено и закрыто. Всё, кроме последнего пункта, — правки в уже написанном коде,
+а не новые решения.
+
+| Что | Почему так |
+|-----|------------|
+| `MapSparkPostWebhook` требует `options`, полупустая пара падает на старте, явный `AllowAnonymous` | Было `options = null` → приёмник без проверок по умолчанию, а `HasAnyCheck` смотрел только на `SecretHeaderName` и `BasicAuthUsername`: конфиг с заполненным `SecretHeaderValue` и забытым именем **молча** пускал всех. Это ровно тот отказ, который не замечают, пока фальшивые `bounce` уже в базе. Ломает API — решение №22 это на `0.x` разрешает |
+| `PrintMembers` у `WebhookAuthCredentials`, `WebhookAuthRequestDetails`, `DkimSettings`, `Attachment` | Сгенерированный `ToString()` записи печатает все свойства. `Webhook`, прочитанный через `GetAsync`, уносил в логи собственный пароль и `access_token`, а `Body` (это `JsonNode`, он печатает JSON, в отличие от словаря) — `client_secret`. §2 запрещает это для API-ключа; тот же класс проблемы, другой секрет. `DkimSettings` печатает приватный ключ DKIM, который пользователь принёс сам, — секрет того же класса. `Attachment` — не секрет, а мегабайты base64 в логе |
+| Проверка `ApiKey` в конструкторе `SparkPostClient` | Пустой ключ уезжал пустым заголовком и возвращался невнятным 401. Проверка в конструкторе, а не `ValidateOnStart`: последний живёт в `Microsoft.Extensions.Hosting.Abstractions` и стоит лишней зависимости, а срабатывает всё равно при первом резолве типизированного клиента. Заодно отсекается `\n`: ключ уходит через `TryAddWithoutValidation`, который по определению ничего не валидирует |
+| Нормализация `BaseUrl` | `new Uri(base, "transmissions")` при базе без слэша на конце съедает последний сегмент: enterprise-эндпоинт `https://host/api/v1` слал бы всё на `https://host/api/`. Встроенные константы слэш имеют, введённый руками — нет |
+| Битое тело вебхука → 400 | Было 500, неотличимое в логах от «упал мой хендлер». Ретраить SparkPost всё равно будет — это про диагностику, не про ретраи |
+| `AddSparkPost(IConfiguration)` | README был вынужден писать `Configuration["SparkPost:ApiKey"]!` с null-forgiving — сам по себе признак нехватки перегрузки. Стоит зависимости `Microsoft.Extensions.Options.ConfigurationExtensions` (8.0.x, та же линия) и `EnableConfigurationBindingGenerator` в проекте DI. Биндинг идёт через генератор, рефлексия не нужна — значит, и атрибуты `Requires*` не нужны: сравнение с `SubstitutionData(object?)` здесь больше не работает |
+| `new SparkPostClient(options)` | Вне DI пользователь был обязан завести `HttpClient` и знать про его lifetime. Статический общий клиент с `PooledConnectionLifetime = 2 мин` — иначе застрявший DNS, единственная реальная опасность статического `HttpClient` |
+| `User-Agent: SparkPoster/{version}` | Норма для API-клиента и первое, что спросит их поддержка |
+| Экшены в CI по SHA + Dependabot, `SECURITY.md`, `CHANGELOG.md` | В джобе `publish` лежит OIDC-токен, который nuget.org меняет на ключ публикации: сдвинутый тег экшена = сдвинутый пакет |
+
+**Сознательно не тронуто:** `TransmissionRequest` и `Recipient` печатают в `ToString()` тело
+письма и данные подстановок. Это PII, а не секреты, и маскировать их — значит ломать
+отладку ради лога, который никто не пишет. Маскируются только записи, где секрет
+доказуемо есть.
+

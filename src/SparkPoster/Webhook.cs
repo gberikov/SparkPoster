@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SparkPoster.Internal;
@@ -112,6 +113,20 @@ public sealed record WebhookAuthRequestDetails
 
     /// <summary>Extra headers for the token request.</summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
+
+    /// <summary>
+    /// The generated record <c>ToString()</c> would print <see cref="Body"/> verbatim, and that
+    /// body holds the <c>client_secret</c>. A <see cref="JsonNode"/> prints its JSON, unlike a
+    /// dictionary, so this one has to be masked by hand.
+    /// </summary>
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append("Url = ").Append(Url)
+            .Append(", Body = ").Append(Body is null ? "null" : "***")
+            .Append(", Headers = ").Append(Headers is null ? "null" : "***");
+
+        return true;
+    }
 }
 
 /// <summary>Credentials used to authenticate against your endpoint.</summary>
@@ -128,6 +143,20 @@ public sealed record WebhookAuthCredentials
 
     /// <summary>The lifetime of the OAuth token, in seconds.</summary>
     public int? ExpiresIn { get; init; }
+
+    /// <summary>
+    /// Secrets are masked: the generated record <c>ToString()</c> prints every property, and a
+    /// webhook read back from the API travels straight into <c>logger.LogInformation("{Webhook}")</c>.
+    /// </summary>
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append("Username = ").Append(Username)
+            .Append(", Password = ").Append(Password is null ? "null" : "***")
+            .Append(", AccessToken = ").Append(AccessToken is null ? "null" : "***")
+            .Append(", ExpiresIn = ").Append(ExpiresIn);
+
+        return true;
+    }
 }
 
 /// <summary>The result of validating a webhook with a test batch.</summary>

@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace SparkPoster;
 
 /// <summary>
@@ -92,5 +94,18 @@ public sealed record Attachment
         await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
 
         return FromBytes(name, type, buffer.GetBuffer().AsSpan(0, (int)buffer.Length));
+    }
+
+    /// <summary>
+    /// The generated record <c>ToString()</c> would print the whole Base64 payload — megabytes
+    /// of it, and whatever personal data the file holds. Only its size is printed.
+    /// </summary>
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append("Name = ").Append(Name)
+            .Append(", Type = ").Append(Type)
+            .Append(", Data = ").Append(Data.Length).Append(" base64 chars");
+
+        return true;
     }
 }

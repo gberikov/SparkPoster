@@ -16,17 +16,21 @@ on:
 permissions:
   contents: read
 
+# Third-party actions are pinned to a commit, not a tag: the publish job holds the OIDC token
+# that nuget.org exchanges for a publishing key, so a moved tag would be a moved package.
+# Dependabot bumps these (.github/dependabot.yml).
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # MinVer derives the version by walking back to the nearest tag. Without the
           # full history it sees none and stamps every package 0.0.0-alpha.0.N.
           fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
@@ -45,18 +49,18 @@ jobs:
       # one-hour API key. No long-lived key is stored anywhere.
       id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
       - run: dotnet pack SparkPoster.slnx -c Release -o artifacts
 
       # Requested right before the push: the key it returns lives one hour.
-      - uses: NuGet/login@v1
+      - uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         id: login
         with:
           user: ${{ vars.NUGET_USER }}

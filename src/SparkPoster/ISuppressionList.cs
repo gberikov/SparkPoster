@@ -23,6 +23,10 @@ public interface ISuppressionList
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task that completes once the entries are stored.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="entries"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">
+    /// The recipient of one of <paramref name="entries"/> is empty or whitespace. The whole batch is
+    /// checked before anything is sent, so nothing was stored.
+    /// </exception>
     /// <exception cref="SparkPostApiException">
     /// SparkPost answered with an error status: one of the entries did not pass validation (400).
     /// The response does not say which entries were stored before the error, so treat the whole

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using SparkPoster.Webhooks;
 
 namespace SparkPoster.Internal;
@@ -25,7 +26,7 @@ internal sealed class EventsResource : IEvents
         return new EventPage
         {
             Events = SparkPostEventReader.ReadFlat(document["results"]),
-            TotalCount = (int?)document["total_count"] ?? 0,
+            TotalCount = document["total_count"]?.Deserialize(SparkPostJsonContext.Default.Int32) ?? 0,
             NextCursor = QueryBuilder.ExtractNextCursor(document["links"]),
         };
     }
