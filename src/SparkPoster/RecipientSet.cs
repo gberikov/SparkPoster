@@ -28,6 +28,7 @@ public sealed class RecipientSet
     /// <summary>Lists the recipients explicitly.</summary>
     /// <param name="recipients">The recipients.</param>
     /// <returns>The recipient set.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="recipients"/> is <c>null</c>.</exception>
     public static RecipientSet Inline(IReadOnlyList<Recipient> recipients)
     {
         ArgumentNullException.ThrowIfNull(recipients);
@@ -37,6 +38,8 @@ public sealed class RecipientSet
     /// <summary>References a stored recipient list.</summary>
     /// <param name="listId">The list identifier.</param>
     /// <returns>The recipient set.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="listId"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="listId"/> is empty or whitespace.</exception>
     /// <remarks>
     /// Per-recipient overrides are ignored in this form, and subaccounts cannot use stored
     /// lists at all.

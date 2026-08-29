@@ -27,6 +27,7 @@ public static class SparkPostWebhookParser
     /// <summary>Parses a batch from a string.</summary>
     /// <param name="json">The request body.</param>
     /// <returns>The events of the batch.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="json"/> is <c>null</c>.</exception>
     /// <exception cref="System.Text.Json.JsonException">The body is not valid JSON.</exception>
     public static IReadOnlyList<SparkPostEvent> Parse(string json)
     {
@@ -39,7 +40,9 @@ public static class SparkPostWebhookParser
     /// <param name="stream">The request body.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The events of the batch.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
     /// <exception cref="System.Text.Json.JsonException">The body is not valid JSON.</exception>
+    /// <exception cref="IOException">Reading the stream failed.</exception>
     public static async Task<IReadOnlyList<SparkPostEvent>> ParseAsync(
         Stream stream,
         CancellationToken cancellationToken = default)

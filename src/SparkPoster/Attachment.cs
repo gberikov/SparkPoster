@@ -30,6 +30,8 @@ public sealed record Attachment
     /// <param name="type">The MIME type.</param>
     /// <param name="content">The content.</param>
     /// <returns>The attachment.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="type"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> or <paramref name="type"/> is empty or whitespace.</exception>
     public static Attachment FromBytes(string name, string type, ReadOnlySpan<byte> content)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -49,6 +51,12 @@ public sealed record Attachment
     /// <param name="name">The file name to use in the message. Defaults to the name from the path.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The attachment.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="path"/> or <paramref name="type"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="path"/> or <paramref name="type"/> is empty or whitespace.</exception>
+    /// <exception cref="FileNotFoundException">There is no file at <paramref name="path"/>.</exception>
+    /// <exception cref="DirectoryNotFoundException">Part of <paramref name="path"/> does not exist.</exception>
+    /// <exception cref="UnauthorizedAccessException">The file cannot be read.</exception>
+    /// <exception cref="IOException">Reading the file failed.</exception>
     public static async Task<Attachment> FromFileAsync(
         string path,
         string type,
@@ -67,6 +75,11 @@ public sealed record Attachment
     /// <param name="type">The MIME type.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The attachment.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="stream"/>, <paramref name="name"/> or <paramref name="type"/> is <c>null</c>.
+    /// </exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> or <paramref name="type"/> is empty or whitespace.</exception>
+    /// <exception cref="IOException">Reading the stream failed.</exception>
     public static async Task<Attachment> FromStreamAsync(
         Stream stream,
         string name,

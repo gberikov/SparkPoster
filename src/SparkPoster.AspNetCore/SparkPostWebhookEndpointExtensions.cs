@@ -37,6 +37,9 @@ public static class SparkPostWebhookEndpointExtensions
     /// <see cref="SparkPostEventBatch.BatchId"/> or <see cref="SparkPostEvent.EventId"/>.
     /// </para>
     /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="endpoints"/> or <paramref name="handler"/> is <c>null</c>.
+    /// </exception>
     public static IEndpointConventionBuilder MapSparkPostWebhook(
         this IEndpointRouteBuilder endpoints,
         string pattern,
