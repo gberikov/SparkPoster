@@ -40,7 +40,7 @@ async/await, максимальное покрытие API.
 | 11a | Ретраи | Своих нет; `AddSparkPost()` возвращает `IHttpClientBuilder`, потребитель вешает `.AddStandardResilienceHandler()` | Backoff, jitter и circuit breaker уже написаны и оттестированы в пакете Microsoft |
 | 11b | Идемпотентность | `Idempotency-Key` генерируем автоматически на каждый `SendAsync`, если не задан явно | `DelegatingHandler` повторяет **тот же** `HttpRequestMessage` → внешний ретрай становится безопасным без единой настройки. Без ключа resilience-handler на 5xx отправит письмо дважды |
 | 12a | События | Типизированная иерархия + `UnknownSparkPostEvent` + `JsonExtensionData`; неизвестный тип **никогда не бросает** | Новый тип события не должен ронять эндпоинт: SparkPost начнёт ретраить весь батч, включая обработанное |
-| 12b | AspNetCore | `app.MapSparkPostWebhook(path, handler)` + проверка basic-auth/секретного заголовка | Исключение из обработчика → 500 (SparkPost повторит), успех → 200. Буферизация в `Channel` по умолчанию молча превращает at-least-once в at-most-once |
+| 12b | AspNetCore | `app.MapSparkPostWebhook(path, handler, options)` + проверка basic-auth/секретного заголовка; `options` обязателен (см. §8) | Исключение из обработчика → 500 (SparkPost повторит), успех → 200. Буферизация в `Channel` по умолчанию молча превращает at-least-once в at-most-once |
 | 13a | JSON | Source-generated `JsonSerializerContext`, `IsAotCompatible` | Дёшево сделать сразу, дорого прикрутить потом. Кастомный конвертер для событий нужен в любом случае: дискриминатор лежит в имени внешнего свойства `msys.message_event` |
 | 13b | Enum'ы | `enum` там, где значение придумываем мы; `string` + `const`-константы там, где сервер | Строгий enum падает на первом новом значении и роняет весь батч |
 | 14 | Пагинация | И `GetPageAsync(query, cursor, ct)`, и `IAsyncEnumerable` поверх него | Продакшн-сценарий «продолжить с чекпоинта» требует явного курсора; обёртка — ~15 строк без состояния |
@@ -92,7 +92,12 @@ var page = await client.Events.GetPageAsync(query, cursor, ct);
 await foreach (var e in client.Events.SearchAsync(query, ct)) { }
 
 // приём вебхуков
-app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
+app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { },
+    new SparkPostWebhookOptions
+    {
+        SecretHeaderName = "X-Webhook-Secret",
+        SecretHeaderValue = secret
+    });
 ```
 
 ## 4. Порядок работ
@@ -179,9 +184,8 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
 | Что | Почему так |
 |-----|------------|
 | `MapSparkPostWebhook` требует `options`, полупустая пара падает на старте, явный `AllowAnonymous` | Было `options = null` → приёмник без проверок по умолчанию, а `HasAnyCheck` смотрел только на `SecretHeaderName` и `BasicAuthUsername`: конфиг с заполненным `SecretHeaderValue` и забытым именем **молча** пускал всех. Это ровно тот отказ, который не замечают, пока фальшивые `bounce` уже в базе. Ломает API — решение №22 это на `0.x` разрешает |
-| `PrintMembers` у `WebhookAuthCredentials`, `WebhookAuthRequestDetails`, `Attachment` | Сгенерированный `ToString()` записи печатает все свойства. `Webhook`, прочитанный через `GetAsync`, уносил в логи собственный пароль и `access_token`, а `Body` (это `JsonNode`, он печатает JSON, в отличие от словаря) — `client_secret`. §2 запрещает это для API-ключа; тот же класс проблемы, другой секрет. `Attachment` — не секрет, а мегабайты base64 в логе |
-| Проверка `ApiKey` в конструкторе `SparkPostClient` | Пустой ключ уезжал пустым заголовком и возвращался невнятным 401. Проверка в конструкторе, а не `ValidateOnStart`: последний живёт в `Microsoft.Extensions.Hosting.Abstractions` и стоит лишней зависимости, а срабатывает всё равно при первом резолве типизированного клиента. Заодно отсекается `
-`: ключ уходит через `TryAddWithoutValidation`, который по определению ничего не валидирует |
+| `PrintMembers` у `WebhookAuthCredentials`, `WebhookAuthRequestDetails`, `DkimSettings`, `Attachment` | Сгенерированный `ToString()` записи печатает все свойства. `Webhook`, прочитанный через `GetAsync`, уносил в логи собственный пароль и `access_token`, а `Body` (это `JsonNode`, он печатает JSON, в отличие от словаря) — `client_secret`. §2 запрещает это для API-ключа; тот же класс проблемы, другой секрет. `DkimSettings` печатает приватный ключ DKIM, который пользователь принёс сам, — секрет того же класса. `Attachment` — не секрет, а мегабайты base64 в логе |
+| Проверка `ApiKey` в конструкторе `SparkPostClient` | Пустой ключ уезжал пустым заголовком и возвращался невнятным 401. Проверка в конструкторе, а не `ValidateOnStart`: последний живёт в `Microsoft.Extensions.Hosting.Abstractions` и стоит лишней зависимости, а срабатывает всё равно при первом резолве типизированного клиента. Заодно отсекается `\n`: ключ уходит через `TryAddWithoutValidation`, который по определению ничего не валидирует |
 | Нормализация `BaseUrl` | `new Uri(base, "transmissions")` при базе без слэша на конце съедает последний сегмент: enterprise-эндпоинт `https://host/api/v1` слал бы всё на `https://host/api/`. Встроенные константы слэш имеют, введённый руками — нет |
 | Битое тело вебхука → 400 | Было 500, неотличимое в логах от «упал мой хендлер». Ретраить SparkPost всё равно будет — это про диагностику, не про ретраи |
 | `AddSparkPost(IConfiguration)` | README был вынужден писать `Configuration["SparkPost:ApiKey"]!` с null-forgiving — сам по себе признак нехватки перегрузки. Стоит зависимости `Microsoft.Extensions.Options.ConfigurationExtensions` (8.0.x, та же линия) и пары атрибутов `RequiresUnreferencedCode`, как у `SubstitutionData(object?)` |
