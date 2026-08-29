@@ -70,8 +70,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `new SparkPostClient(options)` — a constructor for console applications, scripts and tests,
   over a shared `HttpClient` whose `PooledConnectionLifetime` keeps DNS from going stale.
 - Every request carries a `User-Agent: SparkPoster/<version>` header.
-- `SECURITY.md`, this changelog, and Dependabot for NuGet and GitHub Actions. Actions in the
-  workflow are pinned to commit SHAs.
+- `SECURITY.md`, this changelog, and Dependabot for NuGet and GitHub Actions, opening its pull
+  requests against `develop`. Actions in the workflow are pinned to commit SHAs.
 
 ## [0.1.0]
 
