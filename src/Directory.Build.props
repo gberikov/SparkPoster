@@ -13,6 +13,26 @@
     <Authors>Gany Berikov</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>sparkpost;email;transactional-email;webhooks</PackageTags>
+    <PackageProjectUrl>https://github.com/gberikov/SparkPoster</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Source Link. Shipped with the SDK since .NET 8, so no package reference is needed:
+         PublishRepositoryUrl fills RepositoryUrl and RepositoryType in from the git remote,
+         and EmbedUntrackedSources covers generated files that are not in the repository. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- Symbols travel as a separate .snupkg: the debugger pulls them from the NuGet symbol
+         server on demand, so the main package stays small. Source Link then takes the
+         stepping-into straight to the matching commit on GitHub. -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <!-- One README for all three packages: they are useless apart, and the install section
+       covers the three of them together. -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
 
 </Project>
