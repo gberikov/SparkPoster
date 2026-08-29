@@ -15,6 +15,7 @@
     <PackageTags>sparkpost;email;transactional-email;webhooks</PackageTags>
     <PackageProjectUrl>https://github.com/gberikov/SparkPoster</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>https://github.com/gberikov/SparkPoster/blob/master/CHANGELOG.md</PackageReleaseNotes>
 
     <!-- Source Link. Shipped with the SDK since .NET 8, so no package reference is needed:
          PublishRepositoryUrl fills RepositoryUrl and RepositoryType in from the git remote,

@@ -25,7 +25,47 @@ public sealed class SparkPostWebhookOptions
     /// <summary>The expected value of the secret header.</summary>
     public string? SecretHeaderValue { get; set; }
 
-    /// <summary>Whether any check at all is configured.</summary>
-    internal bool HasAnyCheck =>
-        BasicAuthUsername is not null || SecretHeaderName is not null;
+    /// <summary>
+    /// Accepts every call without proving it genuine. Off by default, and there is no way to
+    /// arrive at it by accident: an endpoint with no check configured refuses to start.
+    /// </summary>
+    /// <remarks>
+    /// Only sane when something in front of the endpoint already does the checking — a gateway
+    /// or a service mesh. Anyone who learns the URL can otherwise feed you forged bounce and
+    /// unsubscribe events.
+    /// </remarks>
+    public bool AllowAnonymous { get; set; }
+
+    private bool HasSecretHeader => SecretHeaderName is not null || SecretHeaderValue is not null;
+
+    private bool HasBasicAuth => BasicAuthUsername is not null || BasicAuthPassword is not null;
+
+    /// <summary>
+    /// Rejects a configuration that would let calls through unchecked. A half-filled pair is the
+    /// case worth catching: it used to disable the check silently, which is the one failure mode
+    /// nobody notices until the forged events are already in the database.
+    /// </summary>
+    internal void Validate()
+    {
+        if (HasSecretHeader && (string.IsNullOrEmpty(SecretHeaderName) || string.IsNullOrEmpty(SecretHeaderValue)))
+        {
+            throw new InvalidOperationException(
+                "SparkPostWebhookOptions: SecretHeaderName and SecretHeaderValue must both be set.");
+        }
+
+        if (HasBasicAuth && (string.IsNullOrEmpty(BasicAuthUsername) || string.IsNullOrEmpty(BasicAuthPassword)))
+        {
+            throw new InvalidOperationException(
+                "SparkPostWebhookOptions: BasicAuthUsername and BasicAuthPassword must both be set.");
+        }
+
+        if (!HasSecretHeader && !HasBasicAuth && !AllowAnonymous)
+        {
+            throw new InvalidOperationException(
+                "SparkPostWebhookOptions: no check is configured. Set SecretHeaderName/SecretHeaderValue "
+                + "or BasicAuthUsername/BasicAuthPassword — SparkPost webhooks carry no signature, so an "
+                + "unchecked endpoint accepts forged events from anyone who learns its URL. "
+                + "If something in front of the endpoint already checks, set AllowAnonymous = true.");
+        }
+    }
 }

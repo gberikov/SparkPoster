@@ -166,3 +166,27 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
 - Sandbox-домен `sparkpostbox.com` — **5 писем за всё время жизни аккаунта**. Интеграционные
   тесты гоняем на неотправляющих эндпоинтах; реальная отправка — один ручной smoke-тест, не в CI.
 - Интеграционный проект целиком пропускается без переменной `SPARKPOST_API_KEY`.
+
+## 8. Ревью перед 0.2.0
+
+Найдено и закрыто. Всё, кроме последнего пункта, — правки в уже написанном коде,
+а не новые решения.
+
+| Что | Почему так |
+|-----|------------|
+| `MapSparkPostWebhook` требует `options`, полупустая пара падает на старте, явный `AllowAnonymous` | Было `options = null` → приёмник без проверок по умолчанию, а `HasAnyCheck` смотрел только на `SecretHeaderName` и `BasicAuthUsername`: конфиг с заполненным `SecretHeaderValue` и забытым именем **молча** пускал всех. Это ровно тот отказ, который не замечают, пока фальшивые `bounce` уже в базе. Ломает API — решение №22 это на `0.x` разрешает |
+| `PrintMembers` у `WebhookAuthCredentials`, `WebhookAuthRequestDetails`, `Attachment` | Сгенерированный `ToString()` записи печатает все свойства. `Webhook`, прочитанный через `GetAsync`, уносил в логи собственный пароль и `access_token`, а `Body` (это `JsonNode`, он печатает JSON, в отличие от словаря) — `client_secret`. §2 запрещает это для API-ключа; тот же класс проблемы, другой секрет. `Attachment` — не секрет, а мегабайты base64 в логе |
+| Проверка `ApiKey` в конструкторе `SparkPostClient` | Пустой ключ уезжал пустым заголовком и возвращался невнятным 401. Проверка в конструкторе, а не `ValidateOnStart`: последний живёт в `Microsoft.Extensions.Hosting.Abstractions` и стоит лишней зависимости, а срабатывает всё равно при первом резолве типизированного клиента. Заодно отсекается `
+`: ключ уходит через `TryAddWithoutValidation`, который по определению ничего не валидирует |
+| Нормализация `BaseUrl` | `new Uri(base, "transmissions")` при базе без слэша на конце съедает последний сегмент: enterprise-эндпоинт `https://host/api/v1` слал бы всё на `https://host/api/`. Встроенные константы слэш имеют, введённый руками — нет |
+| Битое тело вебхука → 400 | Было 500, неотличимое в логах от «упал мой хендлер». Ретраить SparkPost всё равно будет — это про диагностику, не про ретраи |
+| `AddSparkPost(IConfiguration)` | README был вынужден писать `Configuration["SparkPost:ApiKey"]!` с null-forgiving — сам по себе признак нехватки перегрузки. Стоит зависимости `Microsoft.Extensions.Options.ConfigurationExtensions` (8.0.x, та же линия) и пары атрибутов `RequiresUnreferencedCode`, как у `SubstitutionData(object?)` |
+| `new SparkPostClient(options)` | Вне DI пользователь был обязан завести `HttpClient` и знать про его lifetime. Статический общий клиент с `PooledConnectionLifetime = 2 мин` — иначе застрявший DNS, единственная реальная опасность статического `HttpClient` |
+| `User-Agent: SparkPoster/{version}` | Норма для API-клиента и первое, что спросит их поддержка |
+| Экшены в CI по SHA + Dependabot, `SECURITY.md`, `CHANGELOG.md` | В джобе `publish` лежит OIDC-токен, который nuget.org меняет на ключ публикации: сдвинутый тег экшена = сдвинутый пакет |
+
+**Сознательно не тронуто:** `TransmissionRequest` и `Recipient` печатают в `ToString()` тело
+письма и данные подстановок. Это PII, а не секреты, и маскировать их — значит ломать
+отладку ради лога, который никто не пишет. Маскируются только записи, где секрет
+доказуемо есть.
+

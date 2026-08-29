@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
@@ -14,16 +15,52 @@ internal sealed class SparkPostRequester
 {
     private const string AuthorizationHeader = "Authorization";
     private const string SubaccountHeader = "X-MSYS-SUBACCOUNT";
+    private const string UserAgentHeader = "User-Agent";
+
+    /// <summary>
+    /// Identifies the library in SparkPost's logs, which is the first thing their support asks
+    /// for. The informational version carries the commit hash after a '+'; that part is dropped.
+    /// </summary>
+    private static readonly string UserAgent = BuildUserAgent();
 
     private readonly HttpClient _http;
     private readonly SparkPostOptions _options;
+    private readonly Uri _baseUrl;
     private readonly int? _subaccountId;
 
     public SparkPostRequester(HttpClient http, SparkPostOptions options, int? subaccountId)
     {
         _http = http;
         _options = options;
+        _baseUrl = NormalizeBaseUrl(options.BaseUrl);
         _subaccountId = subaccountId;
+    }
+
+    /// <summary>
+    /// A base address without a trailing slash silently loses its last segment when a relative
+    /// path is resolved against it: an enterprise endpoint typed as <c>https://host/api/v1</c>
+    /// would send every request to <c>https://host/api/</c>.
+    /// </summary>
+    private static Uri NormalizeBaseUrl(Uri baseUrl)
+    {
+        ArgumentNullException.ThrowIfNull(baseUrl);
+
+        return baseUrl.AbsoluteUri.EndsWith('/') ? baseUrl : new Uri(baseUrl.AbsoluteUri + "/");
+    }
+
+    private static string BuildUserAgent()
+    {
+        var version = typeof(SparkPostRequester).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        if (string.IsNullOrEmpty(version))
+        {
+            return "SparkPoster";
+        }
+
+        var metadata = version.IndexOf('+', StringComparison.Ordinal);
+
+        return "SparkPoster/" + (metadata < 0 ? version : version[..metadata]);
     }
 
     /// <summary>
@@ -33,8 +70,9 @@ internal sealed class SparkPostRequester
     /// </summary>
     public HttpRequestMessage CreateRequest(HttpMethod method, string relativePath)
     {
-        var request = new HttpRequestMessage(method, new Uri(_options.BaseUrl, relativePath));
+        var request = new HttpRequestMessage(method, new Uri(_baseUrl, relativePath));
         request.Headers.TryAddWithoutValidation(AuthorizationHeader, _options.ApiKey);
+        request.Headers.TryAddWithoutValidation(UserAgentHeader, UserAgent);
 
         var subaccount = _subaccountId ?? _options.SubaccountId;
         if (subaccount is not null)

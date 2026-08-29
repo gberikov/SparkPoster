@@ -22,7 +22,7 @@ Targets `net8.0`, so it runs on .NET 8, 9 and 10.
 ## Send a message
 
 ```csharp
-var client = new SparkPostClient(httpClient, new SparkPostOptions { ApiKey = apiKey });
+var client = new SparkPostClient(new SparkPostOptions { ApiKey = apiKey });
 
 var transmission = Transmission.Create()
     .From("noreply@example.com", "Example")
@@ -37,6 +37,9 @@ var transmission = Transmission.Create()
 var result = await client.Transmissions.SendAsync(transmission, cancellationToken: ct);
 // result.Id, result.TotalAcceptedRecipients, result.IsIdempotentReplay
 ```
+
+That constructor is for console applications, scripts and tests: it uses one shared
+`HttpClient` for the process. Inside a host, register the client instead — see below.
 
 The builder never sends anything: `Build()` hands back a serializable `TransmissionRequest`,
 so a message can be assembled now, queued, and sent later.
@@ -62,13 +65,19 @@ streaming to be had, and the 20 MB content cap applies:
 
 ```csharp
 builder.Services
-    .AddSparkPost(options =>
-    {
-        options.ApiKey = builder.Configuration["SparkPost:ApiKey"]!;
-        options.BaseUrl = SparkPostEndpoints.Eu;   // defaults to the US service
-    })
+    .AddSparkPost(builder.Configuration.GetSection("SparkPost"))
     .AddStandardResilienceHandler();               // Microsoft.Extensions.Http.Resilience
+
+// or in code, when the key comes from somewhere configuration cannot reach:
+builder.Services.AddSparkPost(options =>
+{
+    options.ApiKey = apiKey;
+    options.BaseUrl = SparkPostEndpoints.Eu;       // defaults to the US service
+});
 ```
+
+A missing or empty `ApiKey` fails when the client is built, with a message saying so — not
+later, as SparkPost's 401 to a request that carried an empty `Authorization` header.
 
 `AddSparkPost` returns the `IHttpClientBuilder`, so retries, timeouts and circuit breaking
 are configured with the standard Microsoft handler rather than a home-grown one.
@@ -126,6 +135,11 @@ app.MapSparkPostWebhook(
     },
     new SparkPostWebhookOptions { BasicAuthUsername = "hook", BasicAuthPassword = secret });
 ```
+
+The options argument is **required**. SparkPost webhooks carry no signature, so an endpoint
+with nothing configured would accept forged events from anyone who learns its URL; a half-filled
+pair — a header name without its value — throws at startup rather than quietly letting everyone
+through. If a gateway in front already does the checking, say so with `AllowAnonymous = true`.
 
 Outside ASP.NET Core, `SparkPostWebhookParser.ParseAsync(stream, ct)` does the parsing on its
 own.
@@ -190,11 +204,14 @@ catch (SparkPostApiException e) when (e.StatusCode == HttpStatusCode.Unprocessab
 ## Security
 
 - **SparkPost webhooks carry no signature.** Authenticity rests entirely on what you configured
-  when creating the webhook. Serve the endpoint over HTTPS and set either Basic authentication
-  or a secret header — otherwise anyone who learns the URL can feed you forged bounce and
-  unsubscribe events. `SparkPostWebhookOptions` compares secrets in constant time.
+  when creating the webhook. Serve the endpoint over HTTPS; `MapSparkPostWebhook` refuses to
+  start without either Basic authentication or a secret header, and compares them in constant
+  time.
 - **Keep the API key out of configuration files.** Environment variables or a secret store; the
   library never logs it, and never puts it in an exception message.
+- **Secrets are masked in `ToString()`.** A record normally prints every property, so
+  `WebhookAuthCredentials`, `WebhookAuthRequestDetails` and `Attachment` override that — a
+  webhook read back from the API can otherwise carry its own password into your logs.
 - **`SparkPostApiException.RawBody` can hold personal data** — validation errors echo recipient
   addresses back. Think before dumping it into logs.
 

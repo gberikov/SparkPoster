@@ -1,0 +1,22 @@
+# Actions are pinned to commit SHAs in ci.yml, so nothing bumps them on its own.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(ci)"
+
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # One pull request per line rather than one per package: these move together.
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*"]
+      xunit:
+        patterns: ["xunit*"]

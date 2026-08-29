@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -118,6 +119,91 @@ public sealed class WebhookEndpointTests
             () => client.SendAsync(request, TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task A_body_that_is_not_json_is_rejected_with_400()
+    {
+        // 500 would be indistinguishable in the logs from a handler that threw.
+        using var host = await StartHostAsync((_, _) => Task.CompletedTask);
+
+        using var client = host.GetTestClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/hooks/sparkpost")
+        {
+            Content = new StringContent("not json at all", Encoding.UTF8, "application/json"),
+        };
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public void An_endpoint_without_any_check_refuses_to_start()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => MapWith(new SparkPostWebhookOptions()));
+
+        Assert.Contains("no check is configured", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("SecretHeaderName")]
+    [InlineData("SecretHeaderValue")]
+    [InlineData("BasicAuthUsername")]
+    [InlineData("BasicAuthPassword")]
+    public void A_half_filled_pair_refuses_to_start(string filled)
+    {
+        // This is the case that used to disable the check silently.
+        var options = new SparkPostWebhookOptions();
+
+        switch (filled)
+        {
+            case "SecretHeaderName": options.SecretHeaderName = "X-Secret"; break;
+            case "SecretHeaderValue": options.SecretHeaderValue = "s3cret"; break;
+            case "BasicAuthUsername": options.BasicAuthUsername = "hook"; break;
+            default: options.BasicAuthPassword = "p@ss"; break;
+        }
+
+        Assert.Throws<InvalidOperationException>(() => MapWith(options));
+    }
+
+    [Fact]
+    public void Options_are_required()
+    {
+        Assert.Throws<ArgumentNullException>(() => MapWith(null!));
+    }
+
+    [Fact]
+    public async Task AllowAnonymous_accepts_an_unauthenticated_call()
+    {
+        using var host = await StartHostAsync(
+            (_, _) => Task.CompletedTask,
+            new SparkPostWebhookOptions { AllowAnonymous = true });
+
+        using var client = host.GetTestClient();
+        using var request = CreateRequest();
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Maps the endpoint outside a host, so the guard is observed directly rather than through
+    /// whatever the host wraps a startup exception in.
+    /// </summary>
+    private static void MapWith(SparkPostWebhookOptions options) =>
+        new TestRouteBuilder(new ServiceCollection().AddRouting().BuildServiceProvider())
+            .MapSparkPostWebhook("/hooks/sparkpost", (_, _) => Task.CompletedTask, options);
+
+    private sealed class TestRouteBuilder(IServiceProvider services) : IEndpointRouteBuilder
+    {
+        public IServiceProvider ServiceProvider => services;
+
+        public ICollection<EndpointDataSource> DataSources { get; } = [];
+
+        public IApplicationBuilder CreateApplicationBuilder() => new ApplicationBuilder(services);
+    }
+
     private static string Encode(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
 
     private static HttpRequestMessage CreateRequest() =>
@@ -130,6 +216,8 @@ public sealed class WebhookEndpointTests
         Func<SparkPostEventBatch, CancellationToken, Task> handler,
         SparkPostWebhookOptions? options = null)
     {
+        options ??= new SparkPostWebhookOptions { AllowAnonymous = true };
+
         var host = await new HostBuilder()
             .ConfigureWebHost(web => web
                 .UseTestServer()
