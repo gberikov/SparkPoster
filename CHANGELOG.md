@@ -20,6 +20,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
   the log.
 - `SparkPostClient` rejects an empty API key, and one carrying a line break, at construction
   instead of sending an empty `Authorization` header and reporting SparkPost's 401.
+- `DkimSettings` masks the private key in `ToString()`; a `SendingDomainRequest` carrying your own
+  key pair used to print it.
 
 ### Changed
 

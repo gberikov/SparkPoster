@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace SparkPoster;
 
 /// <summary>
@@ -83,6 +85,22 @@ public sealed record DkimSettings
 
     /// <summary>The signing domain, when it differs from the sending domain.</summary>
     public string? SigningDomain { get; init; }
+
+    /// <summary>
+    /// The private key is masked: the generated record <c>ToString()</c> prints every property,
+    /// and a request that brings your own key pair travels straight into
+    /// <c>logger.LogInformation("{Request}", request)</c>.
+    /// </summary>
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append("Selector = ").Append(Selector)
+            .Append(", Public = ").Append(Public)
+            .Append(", Private = ").Append(Private is null ? "null" : "***")
+            .Append(", Headers = ").Append(Headers)
+            .Append(", SigningDomain = ").Append(SigningDomain);
+
+        return true;
+    }
 }
 
 /// <summary>Creating or updating a sending domain.</summary>

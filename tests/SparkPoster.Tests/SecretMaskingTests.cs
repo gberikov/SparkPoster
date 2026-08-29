@@ -57,6 +57,32 @@ public sealed class SecretMaskingTests
     }
 
     [Fact]
+    public void Dkim_private_key_is_masked()
+    {
+        // Bringing your own key pair means the private key travels inside the request record.
+        // The fixture deliberately does not look like a PEM key: secret scanners flag the
+        // header on its own, and the test is about masking, not about the key's format.
+        const string privateKey = "dkim-private-key-material";
+
+        var dkim = new DkimSettings
+        {
+            Selector = "scph0126",
+            Public = "MIGf…",
+            Private = privateKey,
+        };
+
+        var text = dkim.ToString();
+
+        Assert.DoesNotContain(privateKey, text, StringComparison.Ordinal);
+        Assert.Contains("Private = ***", text, StringComparison.Ordinal);
+        Assert.Contains("scph0126", text, StringComparison.Ordinal);
+
+        var request = new SendingDomainRequest { Domain = "example.com", Dkim = dkim };
+
+        Assert.DoesNotContain(privateKey, request.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void An_attachment_prints_the_size_of_its_payload_rather_than_the_payload()
     {
         var attachment = Attachment.FromBytes("invoice.pdf", "application/pdf", "confidential"u8);
