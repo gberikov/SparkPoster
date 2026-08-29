@@ -9,7 +9,7 @@ public sealed class TransmissionsTests
         """{"results":{"total_rejected_recipients":0,"total_accepted_recipients":1,"id":"11668787484950529"}}""";
 
     [Fact]
-    public async Task Цепочка_построителя_даёт_ожидаемое_тело_запроса()
+    public async Task Builder_chain_produces_the_expected_request_body()
     {
         var (client, handler) = CreateClient(HttpStatusCode.OK, SuccessBody);
 
@@ -43,7 +43,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Запрос_уходит_на_transmissions_с_ключом_в_заголовке()
+    public async Task Request_targets_transmissions_with_api_key_header()
     {
         var (client, handler) = CreateClient(HttpStatusCode.OK, SuccessBody);
 
@@ -55,7 +55,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Ключ_идемпотентности_проставляется_автоматически()
+    public async Task Idempotency_key_is_generated_automatically()
     {
         var (client, handler) = CreateClient(HttpStatusCode.OK, SuccessBody);
 
@@ -67,7 +67,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Явный_ключ_идемпотентности_передаётся_как_есть()
+    public async Task Explicit_idempotency_key_is_passed_through()
     {
         var (client, handler) = CreateClient(HttpStatusCode.OK, SuccessBody);
 
@@ -77,7 +77,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Повтор_по_ключу_идемпотентности_виден_в_результате()
+    public async Task Idempotent_replay_is_visible_in_the_result()
     {
         var (client, _) = CreateClient(HttpStatusCode.OK, SuccessBody, ("X-Idempotent-Replayed", "true"));
 
@@ -89,7 +89,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Обычный_ответ_не_помечается_как_повтор()
+    public async Task Regular_response_is_not_marked_as_replay()
     {
         var (client, _) = CreateClient(HttpStatusCode.OK, SuccessBody);
 
@@ -99,7 +99,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Ошибка_422_доносит_description_из_тела()
+    public async Task Status_422_surfaces_description_from_body()
     {
         const string body =
             """{"errors":[{"message":"required field is missing","description":"content object or template_id required","code":"1400"}]}""";
@@ -115,7 +115,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Ответ_429_даёт_RetryAfter()
+    public async Task Status_429_exposes_retry_after()
     {
         var (client, _) = CreateClient(
             HttpStatusCode.TooManyRequests,
@@ -129,7 +129,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Ответ_420_тоже_считается_превышением_лимита()
+    public async Task Status_420_is_treated_as_rate_limit()
     {
         var (client, _) = CreateClient((HttpStatusCode)420, """{"errors":[{"message":"sending limit reached"}]}""");
 
@@ -141,7 +141,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Тело_ошибки_не_в_json_не_роняет_разбор()
+    public async Task Non_json_error_body_does_not_break_parsing()
     {
         var (client, _) = CreateClient(HttpStatusCode.BadGateway, "<html><body>502 Bad Gateway</body></html>");
 
@@ -153,7 +153,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task ForSubaccount_добавляет_заголовок_субаккаунта()
+    public async Task ForSubaccount_adds_subaccount_header()
     {
         var (client, handler) = CreateClient(HttpStatusCode.OK, SuccessBody);
 
@@ -164,7 +164,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Без_субаккаунта_заголовок_не_ставится()
+    public async Task Subaccount_header_is_absent_by_default()
     {
         var (client, handler) = CreateClient(HttpStatusCode.OK, SuccessBody);
 
@@ -174,7 +174,7 @@ public sealed class TransmissionsTests
     }
 
     [Fact]
-    public async Task Европейский_адрес_берётся_из_настроек()
+    public async Task European_base_url_is_taken_from_options()
     {
         var handler = FakeHttpMessageHandler.Returning(HttpStatusCode.OK, SuccessBody);
         var client = new SparkPostClient(

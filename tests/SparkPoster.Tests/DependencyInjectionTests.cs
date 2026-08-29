@@ -5,7 +5,7 @@ namespace SparkPoster.Tests;
 public sealed class DependencyInjectionTests
 {
     [Fact]
-    public void AddSparkPost_регистрирует_клиента()
+    public void AddSparkPost_registers_client()
     {
         var services = new ServiceCollection();
 
@@ -23,7 +23,7 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
-    public void AddSparkPost_возвращает_построитель_http_клиента()
+    public void AddSparkPost_returns_http_client_builder()
     {
         var services = new ServiceCollection();
 

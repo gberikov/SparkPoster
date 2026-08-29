@@ -3,7 +3,7 @@ namespace SparkPoster.Tests;
 public sealed class TransmissionBuilderTests
 {
     [Fact]
-    public void Без_отправителя_Build_бросает()
+    public void Build_throws_without_sender()
     {
         var builder = Transmission.Create().To("user@example.com").Html("<p>hi</p>");
 
@@ -13,7 +13,7 @@ public sealed class TransmissionBuilderTests
     }
 
     [Fact]
-    public void Без_получателей_Build_бросает()
+    public void Build_throws_without_recipients()
     {
         var builder = Transmission.Create().From("noreply@example.com").Html("<p>hi</p>");
 
@@ -23,7 +23,7 @@ public sealed class TransmissionBuilderTests
     }
 
     [Fact]
-    public void Без_содержимого_Build_бросает()
+    public void Build_throws_without_content()
     {
         var builder = Transmission.Create().From("noreply@example.com").To("user@example.com");
 
@@ -33,14 +33,14 @@ public sealed class TransmissionBuilderTests
     }
 
     [Fact]
-    public void Пустой_адрес_отвергается_сразу()
+    public void Blank_address_is_rejected_immediately()
     {
         Assert.Throws<ArgumentException>(() => Transmission.Create().From(" "));
         Assert.Throws<ArgumentException>(() => Transmission.Create().To(string.Empty));
     }
 
     [Fact]
-    public void Без_заданных_опций_options_не_попадает_в_запрос()
+    public void Options_are_omitted_when_none_were_set()
     {
         var request = Transmission.Create()
             .From("noreply@example.com")
@@ -52,7 +52,7 @@ public sealed class TransmissionBuilderTests
     }
 
     [Fact]
-    public void Результат_Build_переиспользуется_через_with()
+    public void Build_result_is_reusable_through_with()
     {
         var template = Transmission.Create()
             .From("noreply@example.com")
@@ -71,7 +71,7 @@ public sealed class TransmissionBuilderTests
     }
 
     [Fact]
-    public void Заголовки_и_метки_получателя_доходят_до_запроса()
+    public void Headers_and_recipient_tags_reach_the_request()
     {
         var request = Transmission.Create()
             .From("noreply@example.com")

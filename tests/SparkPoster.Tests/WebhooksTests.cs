@@ -6,7 +6,7 @@ namespace SparkPoster.Tests;
 public sealed class WebhooksTests
 {
     [Fact]
-    public async Task Создание_отправляет_вебхук_и_возвращает_идентификатор()
+    public async Task Create_posts_the_webhook_and_returns_its_id()
     {
         var (client, handler) = CreateClient(
             HttpStatusCode.OK,
@@ -43,7 +43,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Чтение_разбирает_вебхук()
+    public async Task Get_parses_the_webhook()
     {
         var (client, handler) = CreateClient(
             HttpStatusCode.OK,
@@ -64,7 +64,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Незнакомый_способ_авторизации_не_роняет_разбор()
+    public async Task Unknown_auth_type_does_not_break_parsing()
     {
         var (client, _) = CreateClient(
             HttpStatusCode.OK,
@@ -76,7 +76,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Список_возвращает_все_вебхуки()
+    public async Task List_returns_all_webhooks()
     {
         var (client, handler) = CreateClient(
             HttpStatusCode.OK,
@@ -89,7 +89,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Изменение_уходит_put_запросом()
+    public async Task Update_is_sent_as_put()
     {
         var (client, handler) = CreateClient(HttpStatusCode.OK, """{"results":{"id":"abc"}}""");
 
@@ -110,7 +110,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Удаление_уходит_delete_запросом()
+    public async Task Delete_is_sent_as_delete()
     {
         var (client, handler) = CreateClient(HttpStatusCode.NoContent, string.Empty);
 
@@ -121,7 +121,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Проверка_отправляет_тестовый_батч_и_возвращает_ответ_эндпоинта()
+    public async Task Validate_posts_a_test_batch_and_returns_target_response()
     {
         var (client, handler) = CreateClient(
             HttpStatusCode.OK,
@@ -140,7 +140,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Статус_батчей_разбирает_и_числа_и_строки()
+    public async Task Batch_status_accepts_both_numbers_and_strings()
     {
         // response_code в документации описан числом, а в примерах приходит строкой.
         var (client, handler) = CreateClient(
@@ -163,7 +163,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Примеры_событий_возвращаются_как_есть()
+    public async Task Event_samples_are_returned_as_is()
     {
         var (client, handler) = CreateClient(
             HttpStatusCode.OK,
@@ -180,7 +180,7 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Ошибка_создания_доносит_код_и_сообщение()
+    public async Task Create_error_surfaces_code_and_message()
     {
         var (client, _) = CreateClient(
             HttpStatusCode.BadRequest,

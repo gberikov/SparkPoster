@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SparkPoster.Webhooks;
 
 namespace SparkPoster.Internal;
 
@@ -28,4 +29,10 @@ namespace SparkPoster.Internal;
 [JsonSerializable(
     typeof(SparkPostEnvelope<IReadOnlyList<WebhookBatchStatus>>),
     TypeInfoPropertyName = "WebhookBatchStatusListEnvelope")]
+[JsonSerializable(typeof(MessageEvent))]
+[JsonSerializable(typeof(TrackEvent))]
+[JsonSerializable(typeof(GenerationEvent))]
+[JsonSerializable(typeof(UnsubscribeEvent))]
+[JsonSerializable(typeof(RelayEvent))]
+[JsonSerializable(typeof(string))]
 internal sealed partial class SparkPostJsonContext : JsonSerializerContext;
