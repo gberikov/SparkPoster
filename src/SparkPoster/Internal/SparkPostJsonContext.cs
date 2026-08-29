@@ -12,4 +12,6 @@ namespace SparkPoster.Internal;
 [JsonSerializable(typeof(TransmissionRequest))]
 [JsonSerializable(typeof(SparkPostEnvelope<TransmissionResponse>), TypeInfoPropertyName = "TransmissionEnvelope")]
 [JsonSerializable(typeof(SparkPostErrorEnvelope))]
+[JsonSerializable(typeof(List<Recipient>))]
+[JsonSerializable(typeof(IReadOnlyList<Recipient>))]
 internal sealed partial class SparkPostJsonContext : JsonSerializerContext;

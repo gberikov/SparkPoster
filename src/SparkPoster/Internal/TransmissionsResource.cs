@@ -42,6 +42,17 @@ internal sealed class TransmissionsResource : ITransmissions
         return result with { IsIdempotentReplay = IsReplay(response) };
     }
 
+    public async Task DeleteByCampaignAsync(string campaignId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(campaignId);
+
+        using var request = _requester.CreateRequest(
+            HttpMethod.Delete,
+            $"transmissions?campaign_id={Uri.EscapeDataString(campaignId)}");
+
+        using var response = await _requester.SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
     private static bool IsReplay(HttpResponseMessage response)
     {
         foreach (var header in ReplayHeaders)
