@@ -16,6 +16,9 @@ public static class SparkPostServiceCollectionExtensions
     /// <c>.AddStandardResilienceHandler()</c> from <c>Microsoft.Extensions.Http.Resilience</c>.
     /// Retries are safe: the client stamps an <c>Idempotency-Key</c> header on every send.
     /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="services"/> or <paramref name="configure"/> is <c>null</c>.
+    /// </exception>
     public static IHttpClientBuilder AddSparkPost(this IServiceCollection services, Action<SparkPostOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(services);

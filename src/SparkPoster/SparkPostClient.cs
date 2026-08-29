@@ -48,6 +48,9 @@ public sealed class SparkPostClient : ISparkPostClient
     /// <summary>Creates a client.</summary>
     /// <param name="httpClient">The HTTP client. Retries, timeouts and circuit breaking are configured on it.</param>
     /// <param name="options">Configuration: key, base address, default subaccount.</param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="httpClient"/> or <paramref name="options"/> is <c>null</c>.
+    /// </exception>
     public SparkPostClient(HttpClient httpClient, SparkPostOptions options)
         : this(httpClient, options, subaccountId: null)
     {
