@@ -28,11 +28,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `MapSparkPostWebhook` refuses options that configure both the secret header and Basic
   authentication (only the header was ever checked), and options that set `AllowAnonymous` next
   to a configured check (the flag was silently ignored). Configure exactly one.
-- `AddSparkPost(IConfiguration)` binds through the configuration-binding source generator and is
-  trim- and AOT-safe; the `RequiresUnreferencedCode`/`RequiresDynamicCode` annotations are gone.
+  **Breaking:** both of those configurations used to start; they now throw at startup.
 - `SparkPostClient` reads its `SparkPostOptions` once, at construction; changing the options object
   afterwards no longer affects an existing client (previously the key and subaccount were re-read on
   every request while the base address was not).
+  **Breaking:** rotating the key by assigning to `SparkPostOptions.ApiKey` no longer reaches a
+  client that already exists — build a new one.
 
 ### Fixed
 
@@ -61,15 +62,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `SparkPostClient` rejects a relative `BaseUrl` at construction with a message naming the option,
   instead of failing on the first request with `InvalidOperationException: This operation is not
   supported for a relative URI`.
-- The `User-Agent` header keeps whatever the application set on the `HttpClient` and appends
-  `SparkPoster/<version>`, instead of replacing it.
 
 ### Added
 
-- `AddSparkPost(IConfiguration)` binds the options from a configuration section.
+- `AddSparkPost(IConfiguration)` binds the options from a configuration section through the
+  configuration-binding source generator — trim- and AOT-safe.
 - `new SparkPostClient(options)` — a constructor for console applications, scripts and tests,
   over a shared `HttpClient` whose `PooledConnectionLifetime` keeps DNS from going stale.
-- Every request carries a `User-Agent: SparkPoster/<version>` header.
+- Every request carries a `User-Agent: SparkPoster/<version>` header, appended to whatever the
+  application set on the `HttpClient`.
 - `SECURITY.md`, this changelog, and Dependabot for NuGet and GitHub Actions, opening its pull
   requests against `develop`. Actions in the workflow are pinned to commit SHAs.
 

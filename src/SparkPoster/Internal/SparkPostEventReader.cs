@@ -40,7 +40,7 @@ internal static class SparkPostEventReader
 
     /// <summary>
     /// Reads the flat array returned by the Events API. There is no <c>msys</c> wrapper there,
-    /// so the category is derived from the event type instead.
+    /// so the event type picks the CLR type and the category is left empty.
     /// </summary>
     public static IReadOnlyList<SparkPostEvent> ReadFlat(JsonNode? results)
     {

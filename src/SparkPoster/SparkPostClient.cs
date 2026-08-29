@@ -33,6 +33,10 @@ public interface ISparkPostClient
     /// that header — they filter subaccounts through the <c>subaccounts</c> query parameter,
     /// so <see cref="ForSubaccount"/> has no effect on them.
     /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// The <see cref="SparkPostOptions"/> this client was built with no longer pass validation,
+    /// because they were changed after the client was constructed.
+    /// </exception>
     ISparkPostClient ForSubaccount(int subaccountId);
 }
 

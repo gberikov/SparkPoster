@@ -210,8 +210,8 @@ catch (SparkPostApiException e) when (e.StatusCode == HttpStatusCode.Unprocessab
 - **Keep the API key out of configuration files.** Environment variables or a secret store; the
   library never logs it, and never puts it in an exception message.
 - **Secrets are masked in `ToString()`.** A record normally prints every property, so
-  `WebhookAuthCredentials`, `WebhookAuthRequestDetails` and `Attachment` override that — a
-  webhook read back from the API can otherwise carry its own password into your logs.
+  `WebhookAuthCredentials`, `WebhookAuthRequestDetails`, `DkimSettings` and `Attachment` override
+  that — a webhook read back from the API can otherwise carry its own password into your logs.
 - **`SparkPostApiException.RawBody` can hold personal data** — validation errors echo recipient
   addresses back. Think before dumping it into logs.
 

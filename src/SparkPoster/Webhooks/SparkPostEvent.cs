@@ -226,7 +226,10 @@ public sealed record RelayEvent : SparkPostEvent
 /// </remarks>
 public sealed record UnknownSparkPostEvent : SparkPostEvent
 {
-    /// <summary>The category name exactly as it arrived inside <c>msys</c>.</summary>
+    /// <summary>
+    /// The category name exactly as it arrived inside <c>msys</c>. Empty for an event from the
+    /// Events API, which carries no category.
+    /// </summary>
     public string Category { get; init; } = string.Empty;
 
     /// <summary>The whole event body as received.</summary>
