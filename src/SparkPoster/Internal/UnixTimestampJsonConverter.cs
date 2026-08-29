@@ -19,7 +19,7 @@ internal sealed class UnixTimestampJsonConverter : JsonConverter<DateTimeOffset?
                 return null;
 
             case JsonTokenType.Number:
-                return DateTimeOffset.FromUnixTimeSeconds(reader.GetInt64());
+                return FromUnixSeconds(reader.GetInt64());
 
             case JsonTokenType.String:
                 var text = reader.GetString();
@@ -31,20 +31,43 @@ internal sealed class UnixTimestampJsonConverter : JsonConverter<DateTimeOffset?
 
                 if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds))
                 {
-                    return DateTimeOffset.FromUnixTimeSeconds(seconds);
+                    return FromUnixSeconds(seconds);
                 }
 
-                // A JsonException — not the FormatException DateTimeOffset.Parse would throw — so that
-                // the reader's fallback catches it and reports the event as unknown instead of taking
-                // down the whole batch.
                 return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var moment)
                     ? moment
-                    : throw new JsonException($"An event timestamp arrived as '{text}', which is neither Unix seconds nor ISO 8601.");
+                    : throw Unreadable(text);
 
             default:
                 throw new JsonException($"An event timestamp arrived as {reader.TokenType}.");
         }
     }
+
+    /// <summary>
+    /// Both branches go through here: <see cref="DateTimeOffset.FromUnixTimeSeconds"/> throws
+    /// <see cref="ArgumentOutOfRangeException"/> outside its range, and a value that far out still
+    /// parses as a <see cref="long"/>.
+    /// </summary>
+    private static DateTimeOffset FromUnixSeconds(long seconds)
+    {
+        try
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(seconds);
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw Unreadable(seconds.ToString(CultureInfo.InvariantCulture), exception);
+        }
+    }
+
+    /// <summary>
+    /// A <see cref="JsonException"/> — never a <see cref="FormatException"/> or an
+    /// <see cref="ArgumentOutOfRangeException"/> — because only that one is caught by the fallback in
+    /// <see cref="SparkPostEventReader"/>. Anything else takes down the whole batch instead of the
+    /// single event that is unreadable.
+    /// </summary>
+    private static JsonException Unreadable(string raw, Exception? inner = null) =>
+        new($"An event timestamp arrived as '{raw}', which is neither Unix seconds nor ISO 8601.", inner);
 
     public override void Write(Utf8JsonWriter writer, DateTimeOffset? value, JsonSerializerOptions options)
     {

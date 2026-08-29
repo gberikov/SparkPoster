@@ -80,6 +80,17 @@ public sealed class WebhookParserTests
     }
 
     [Fact]
+    public void Out_of_range_unix_timestamp_does_not_break_the_batch()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"message_event":{"type":"bounce","timestamp":"99999999999999"}}}]""");
+
+        var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
+
+        Assert.Contains("sparkposter_parse_error", unknown.Extra!);
+    }
+
+    [Fact]
     public void Click_is_parsed_into_TrackEvent()
     {
         var events = SparkPostWebhookParser.Parse(
