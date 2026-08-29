@@ -132,14 +132,8 @@ internal sealed class SuppressionListResource : ISuppressionList
             return builder.ToString();
         }
 
-        builder.AddTimestamp("from", query.From);
-        builder.AddTimestamp("to", query.To);
-
-        if (query.From is not null || query.To is not null)
-        {
-            builder.Add("timezone", "UTC");
-        }
-
+        builder.AddOffsetTimestamp("from", query.From);
+        builder.AddOffsetTimestamp("to", query.To);
         builder.Add("domain", query.Domain);
         builder.AddList("sources", query.Sources);
         builder.AddList("types", query.Types);

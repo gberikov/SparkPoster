@@ -47,15 +47,27 @@ internal sealed class QueryBuilder
     }
 
     /// <summary>
-    /// SparkPost expects <c>YYYY-MM-DDTHH:MM</c> and reads it in the account time zone unless
-    /// a timezone parameter says otherwise, so values are converted to UTC and the caller
-    /// declares the time zone once.
+    /// The Events API expects <c>YYYY-MM-DDTHH:MM</c> and reads it in the account time zone unless
+    /// a separate <c>timezone</c> parameter says otherwise, so values are converted to UTC and the
+    /// caller declares the time zone once.
     /// </summary>
     public void AddTimestamp(string name, DateTimeOffset? value)
     {
         if (value is { } moment)
         {
             Add(name, moment.UtcDateTime.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture));
+        }
+    }
+
+    /// <summary>
+    /// The suppression list expects <c>YYYY-MM-DDTHH:mm:ssZ</c> — seconds and an explicit offset,
+    /// no separate timezone parameter. The instant is sent in UTC.
+    /// </summary>
+    public void AddOffsetTimestamp(string name, DateTimeOffset? value)
+    {
+        if (value is { } moment)
+        {
+            Add(name, moment.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture));
         }
     }
 

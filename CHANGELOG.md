@@ -32,6 +32,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
   `MapSparkPostWebhook`, no longer turns into a 500 that makes SparkPost retry the batch for
   8 hours). It is reported as an `UnknownSparkPostEvent` with the parse error in `Extra`, like any
   other unparsable event.
+- Suppression-list search sends `from`/`to` in the format that endpoint documents
+  (`YYYY-MM-DDTHH:mm:ssZ`, e.g. `2026-08-01T06:00:00+00:00`) and no longer appends a `timezone`
+  parameter the endpoint does not have. Previously the dates went out in the Events-API shape,
+  without seconds or offset.
 
 ### Added
 

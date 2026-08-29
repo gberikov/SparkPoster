@@ -115,6 +115,26 @@ public sealed class SuppressionListTests
     }
 
     [Fact]
+    public async Task Search_dates_carry_seconds_and_an_offset_and_no_timezone_parameter()
+    {
+        var (client, handler) = CreateClient("""{"results":[],"total_count":0,"links":{}}""");
+
+        await client.SuppressionList.SearchPageAsync(
+            new SuppressionQuery
+            {
+                From = new DateTimeOffset(2026, 8, 1, 12, 0, 0, TimeSpan.FromHours(6)),
+                To = new DateTimeOffset(2026, 8, 2, 0, 0, 0, TimeSpan.Zero),
+            },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var query = handler.LastRequest!.RequestUri!.Query;
+
+        Assert.Contains("from=2026-08-01T06%3A00%3A00%2B00%3A00", query, StringComparison.Ordinal);
+        Assert.Contains("to=2026-08-02T00%3A00%3A00%2B00%3A00", query, StringComparison.Ordinal);
+        Assert.DoesNotContain("timezone", query, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Search_walks_every_page()
     {
         var handler = FakeHttpMessageHandler.ReturningSequence(
