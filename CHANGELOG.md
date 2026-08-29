@@ -6,6 +6,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-29
+
+Two rounds of code review. Three changes are breaking — each is marked below — which is what a
+minor bump means below 1.0. If you took 0.1.0, update: it lets a webhook endpoint run without any
+check when called without options, and it prints webhook credentials in `ToString()`.
+
 ### Security
 
 - `MapSparkPostWebhook` no longer accepts calls unchecked. The options argument is now required,
