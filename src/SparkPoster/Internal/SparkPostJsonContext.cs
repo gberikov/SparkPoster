@@ -50,4 +50,5 @@ namespace SparkPoster.Internal;
 [JsonSerializable(typeof(SparkPostEnvelope<IReadOnlyList<SendingDomain>>), TypeInfoPropertyName = "SendingDomainListEnvelope")]
 [JsonSerializable(typeof(SparkPostEnvelope<SendingDomainStatus>), TypeInfoPropertyName = "SendingDomainStatusEnvelope")]
 [JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(int))]
 internal sealed partial class SparkPostJsonContext : JsonSerializerContext;

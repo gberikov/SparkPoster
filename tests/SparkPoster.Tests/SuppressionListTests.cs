@@ -211,6 +211,18 @@ public sealed class SuppressionListTests
     }
 
     [Fact]
+    public async Task Total_count_is_read_when_it_arrives_as_a_string()
+    {
+        var (client, _) = CreateClient(
+            """{"results":[{"recipient":"a@example.com"}],"total_count":"3","links":{}}""");
+
+        var page = await client.SuppressionList.SearchPageAsync(
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, page.TotalCount);
+    }
+
+    [Fact]
     public async Task Summary_reports_counts_per_kind()
     {
         var (client, handler) = CreateClient("""{"results":{"transactional":1234,"non_transactional":5678}}""");

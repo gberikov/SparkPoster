@@ -105,7 +105,7 @@ internal sealed class SuppressionListResource : ISuppressionList
         return new SuppressionPage
         {
             Entries = document["results"].Deserialize(SparkPostJsonContext.Default.IReadOnlyListSuppressionEntry) ?? [],
-            TotalCount = (int?)document["total_count"] ?? 0,
+            TotalCount = document["total_count"]?.Deserialize(SparkPostJsonContext.Default.Int32) ?? 0,
             NextCursor = QueryBuilder.ExtractNextCursor(document["links"]),
         };
     }

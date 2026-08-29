@@ -44,6 +44,7 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
   to go out with `source`, `created`, `updated` and `subaccount_id` attached.
 - `PreviewAsync` accepts substitution data that is part of another `JsonNode` tree instead of
   throwing `InvalidOperationException`.
+- `total_count` in event and suppression-list pages is read when SparkPost returns it as a string.
 
 ### Added
 
