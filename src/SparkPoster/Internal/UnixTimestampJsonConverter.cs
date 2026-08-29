@@ -19,7 +19,12 @@ internal sealed class UnixTimestampJsonConverter : JsonConverter<DateTimeOffset?
                 return null;
 
             case JsonTokenType.Number:
-                return FromUnixSeconds(reader.GetInt64());
+                // A fractional number is unreadable by this converter's own logic rather than by
+                // the FormatException the reader would throw for us: only a JsonException is caught
+                // by the per-event fallback in SparkPostEventReader.
+                return reader.TryGetInt64(out var number)
+                    ? FromUnixSeconds(number)
+                    : throw Unreadable(reader.GetDouble().ToString(CultureInfo.InvariantCulture));
 
             case JsonTokenType.String:
                 var text = reader.GetString();
@@ -67,7 +72,7 @@ internal sealed class UnixTimestampJsonConverter : JsonConverter<DateTimeOffset?
     /// single event that is unreadable.
     /// </summary>
     private static JsonException Unreadable(string raw, Exception? inner = null) =>
-        new($"An event timestamp arrived as '{raw}', which is neither Unix seconds nor ISO 8601.", inner);
+        new($"An event timestamp arrived as '{raw}', which is not Unix seconds within the range of a date nor ISO 8601.", inner);
 
     public override void Write(Utf8JsonWriter writer, DateTimeOffset? value, JsonSerializerOptions options)
     {
