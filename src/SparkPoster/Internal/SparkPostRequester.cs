@@ -68,7 +68,13 @@ internal sealed class SparkPostRequester
     {
         var request = new HttpRequestMessage(method, new Uri(_baseUrl, relativePath));
         request.Headers.TryAddWithoutValidation(AuthorizationHeader, _options.ApiKey);
-        request.Headers.TryAddWithoutValidation(UserAgentHeader, UserAgent);
+
+        // A header on the request replaces DefaultRequestHeaders rather than merging with it, so
+        // whatever the application identifies itself as has to be carried along by hand.
+        var applicationAgent = _http.DefaultRequestHeaders.UserAgent;
+        request.Headers.TryAddWithoutValidation(
+            UserAgentHeader,
+            applicationAgent.Count == 0 ? UserAgent : $"{applicationAgent} {UserAgent}");
 
         var subaccount = _subaccountId ?? _options.SubaccountId;
         if (subaccount is not null)

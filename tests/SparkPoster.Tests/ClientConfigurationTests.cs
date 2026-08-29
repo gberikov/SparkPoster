@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,6 +9,10 @@ public sealed class ClientConfigurationTests
 {
     private const string SuccessBody =
         """{"results":{"id":"1","total_accepted_recipients":1,"total_rejected_recipients":0}}""";
+
+    /// <summary>The token the library adds: its informational version without the commit hash.</summary>
+    private static readonly string LibraryUserAgent = "SparkPoster/" + typeof(SparkPostClient).Assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
 
     [Theory]
     [InlineData("")]
@@ -76,6 +81,27 @@ public sealed class ClientConfigurationTests
         var userAgent = handler.LastRequest!.Headers.GetValues("User-Agent").Single();
 
         Assert.StartsWith("SparkPoster", userAgent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task User_agent_keeps_what_the_application_set()
+    {
+        // A header on the request replaces DefaultRequestHeaders rather than merging with it, so
+        // ours has to carry the application's tokens along or the application loses its identity.
+        var handler = FakeHttpMessageHandler.Returning(HttpStatusCode.OK, SuccessBody);
+        var http = handler.CreateClient();
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("MyApp/1.0");
+
+        var client = new SparkPostClient(http, new SparkPostOptions { ApiKey = "test-key" });
+
+        await client.Transmissions.SendAsync(
+            Transmission.Create().From("a@example.com").To("b@example.com").Text("hi").Build(),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Two product tokens now, so read the header as a whole rather than as its single value.
+        var userAgent = handler.LastRequest!.Headers.UserAgent.ToString();
+
+        Assert.Equal($"MyApp/1.0 {LibraryUserAgent}", userAgent);
     }
 
     [Fact]

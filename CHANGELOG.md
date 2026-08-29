@@ -56,6 +56,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `SparkPostClient` rejects a relative `BaseUrl` at construction with a message naming the option,
   instead of failing on the first request with `InvalidOperationException: This operation is not
   supported for a relative URI`.
+- The `User-Agent` header keeps whatever the application set on the `HttpClient` and appends
+  `SparkPoster/<version>`, instead of replacing it.
 
 ### Added
 
