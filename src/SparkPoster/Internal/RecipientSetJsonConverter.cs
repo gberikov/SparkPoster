@@ -4,8 +4,8 @@ using System.Text.Json.Serialization;
 namespace SparkPoster.Internal;
 
 /// <summary>
-/// Пишет и читает поле <c>recipients</c>, у которого две формы: массив получателей
-/// либо объект <c>{ "list_id": "..." }</c>.
+/// Reads and writes the <c>recipients</c> field, which has two shapes: an array of
+/// recipients or an object of the form <c>{ "list_id": "..." }</c>.
 /// </summary>
 internal sealed class RecipientSetJsonConverter : JsonConverter<RecipientSet>
 {
@@ -25,11 +25,11 @@ internal sealed class RecipientSetJsonConverter : JsonConverter<RecipientSet>
             case JsonTokenType.StartObject:
                 var listId = ReadListId(ref reader);
                 return listId is null
-                    ? throw new JsonException("Объект recipients не содержит list_id.")
+                    ? throw new JsonException("The recipients object carries no list_id.")
                     : RecipientSet.StoredList(listId);
 
             default:
-                throw new JsonException($"Поле recipients ожидалось массивом или объектом, встретилось {reader.TokenType}.");
+                throw new JsonException($"The recipients field was expected to be an array or an object but was {reader.TokenType}.");
         }
     }
 

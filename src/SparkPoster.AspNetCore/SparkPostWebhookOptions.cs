@@ -1,31 +1,31 @@
 namespace SparkPoster.AspNetCore;
 
 /// <summary>
-/// Проверка подлинности вызова вебхука.
+/// How an incoming webhook call is proven genuine.
 /// </summary>
 /// <remarks>
-/// У вебхуков SparkPost нет подписи, поэтому подлинность подтверждается только тем,
-/// что настроено при создании вебхука. Задайте либо Basic-авторизацию, либо секретный
-/// заголовок — и то же самое укажите в <see cref="WebhookRequest"/>.
+/// SparkPost webhooks carry no signature, so authenticity rests entirely on what you
+/// configured when creating the webhook. Set either Basic authentication or a secret header,
+/// and mirror the same values in the <see cref="WebhookRequest"/>.
 /// </remarks>
 public sealed class SparkPostWebhookOptions
 {
-    /// <summary>Имя пользователя для Basic-авторизации.</summary>
+    /// <summary>The user name for Basic authentication.</summary>
     public string? BasicAuthUsername { get; set; }
 
-    /// <summary>Пароль для Basic-авторизации.</summary>
+    /// <summary>The password for Basic authentication.</summary>
     public string? BasicAuthPassword { get; set; }
 
     /// <summary>
-    /// Имя секретного заголовка, например <c>X-Webhook-Secret</c>.
-    /// Должно совпадать с ключом в <see cref="WebhookRequest.CustomHeaders"/>.
+    /// The name of the secret header, for example <c>X-Webhook-Secret</c>.
+    /// It must match a key in <see cref="WebhookRequest.CustomHeaders"/>.
     /// </summary>
     public string? SecretHeaderName { get; set; }
 
-    /// <summary>Ожидаемое значение секретного заголовка.</summary>
+    /// <summary>The expected value of the secret header.</summary>
     public string? SecretHeaderValue { get; set; }
 
-    /// <summary>Настроена ли хоть какая-то проверка.</summary>
+    /// <summary>Whether any check at all is configured.</summary>
     internal bool HasAnyCheck =>
         BasicAuthUsername is not null || SecretHeaderName is not null;
 }

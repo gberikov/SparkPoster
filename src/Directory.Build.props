@@ -1,12 +1,12 @@
 <Project>
 
-  <!-- Корневой Directory.Build.props MSBuild сам НЕ подхватит: он останавливается на
-       первом найденном вверх по дереву. Поэтому импортируем явно. -->
+  <!-- MSBuild will NOT pick the root Directory.Build.props up on its own: it stops at the
+       first one it finds walking up the tree. Hence the explicit import. -->
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <PropertyGroup>
-    <!-- Вместе с TreatWarningsAsErrors это значит: отсутствующий XML-док на публичном
-         типе ломает сборку. Так и задумано — библиотеку собираемся публиковать. -->
+    <!-- Together with TreatWarningsAsErrors this means a public type without an XML doc
+         breaks the build. That is the intent: this library is meant to be published. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible>true</IsAotCompatible>
 

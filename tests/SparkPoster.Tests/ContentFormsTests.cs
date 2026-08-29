@@ -115,7 +115,7 @@ public sealed class ContentFormsTests
         Assert.Equal("\"User\" <user@example.com>", (string?)recipients[1]!["address"]!["header_to"]);
         Assert.Equal("\"User\" <user@example.com>", (string?)recipients[2]!["address"]!["header_to"]);
 
-        // Скрытый получатель нигде не упоминается, получатель копии — упоминается.
+        // The bcc recipient is mentioned nowhere; the cc recipient is.
         Assert.Equal("boss@example.com", (string?)json["content"]!["headers"]!["CC"]);
     }
 
@@ -164,8 +164,8 @@ public sealed class ContentFormsTests
 
         var exception = Assert.Throws<InvalidOperationException>(builder.Build);
 
-        Assert.Contains("inline-содержимое", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("шаблон", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("inline content", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("stored template", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class ContentFormsTests
 
         var exception = Assert.Throws<InvalidOperationException>(builder.Build);
 
-        Assert.Contains("дважды", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("twice", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -199,8 +199,8 @@ public sealed class ContentFormsTests
         await client.Transmissions.DeleteByCampaignAsync("christmas 2026", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpMethod.Delete, handler.LastRequest!.Method);
-        // Именно AbsoluteUri: ToString() показывает раскодированную форму, а на провод
-        // уходит экранированная.
+        // AbsoluteUri on purpose: ToString() shows the decoded form while the escaped one
+        // is what goes on the wire.
         Assert.Equal(
             "https://api.sparkpost.com/api/v1/transmissions?campaign_id=christmas%202026",
             handler.LastRequest.RequestUri!.AbsoluteUri);
@@ -241,7 +241,7 @@ public sealed class ContentFormsTests
     private static void AssertJson(string expected, string actual) =>
         Assert.True(
             JsonNode.DeepEquals(JsonNode.Parse(actual), JsonNode.Parse(expected)),
-            $"Отправлено не то тело:{Environment.NewLine}{actual}");
+            $"Unexpected request body:{Environment.NewLine}{actual}");
 
     private static async Task<string> CaptureBodyAsync(TransmissionRequest transmission)
     {

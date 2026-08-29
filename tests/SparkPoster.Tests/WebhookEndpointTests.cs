@@ -107,9 +107,9 @@ public sealed class WebhookEndpointTests
     [Fact]
     public async Task Handler_exception_is_not_swallowed()
     {
-        // Проглоченное исключение молча превратило бы доставку «хотя бы один раз»
-        // в «не более одного раза»: SparkPost получил бы 200 и не повторил батч.
-        using var host = await StartHostAsync((_, _) => throw new InvalidOperationException("обработчик упал"));
+        // Swallowing the exception would silently turn at-least-once delivery into
+        // at-most-once: SparkPost would get a 200 and never resend the batch.
+        using var host = await StartHostAsync((_, _) => throw new InvalidOperationException("handler blew up"));
 
         using var client = host.GetTestClient();
         using var request = CreateRequest();

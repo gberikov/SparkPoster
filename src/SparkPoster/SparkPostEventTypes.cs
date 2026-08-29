@@ -1,84 +1,85 @@
 namespace SparkPoster;
 
 /// <summary>
-/// Типы событий SparkPost.
+/// SparkPost event types.
 /// </summary>
 /// <remarks>
-/// Константы, а не перечисление: список пополняется на стороне сервера, и строгий
-/// <c>enum</c> ронял бы разбор целого батча на первом незнакомом значении. Актуальный
-/// список всегда можно получить через <see cref="IWebhooks.GetEventsDocumentationAsync"/>.
+/// Constants rather than an enum: the server keeps adding to the list, and a strict
+/// <c>enum</c> would break the parsing of a whole batch on the first unfamiliar value.
+/// The current list is always available through
+/// <see cref="IWebhooks.GetEventsDocumentationAsync"/>.
 /// </remarks>
 public static class SparkPostEventTypes
 {
-    /// <summary>Письмо принято в SparkPost.</summary>
+    /// <summary>The message was accepted into SparkPost.</summary>
     public const string Injection = "injection";
 
-    /// <summary>Письмо доставлено.</summary>
+    /// <summary>The message was delivered.</summary>
     public const string Delivery = "delivery";
 
-    /// <summary>Постоянный отказ принимающего сервера.</summary>
+    /// <summary>The receiving server rejected the message permanently.</summary>
     public const string Bounce = "bounce";
 
-    /// <summary>Отказ, пришедший асинхронно, уже после принятия письма.</summary>
+    /// <summary>A rejection that arrived asynchronously, after the message was accepted.</summary>
     public const string OutOfBand = "out_of_band";
 
-    /// <summary>Письмо отклонено политикой SparkPost — например, адресом из списка подавления.</summary>
+    /// <summary>SparkPost policy rejected the message, for example a suppressed address.</summary>
     public const string PolicyRejection = "policy_rejection";
 
-    /// <summary>Временная задержка доставки.</summary>
+    /// <summary>Delivery was temporarily delayed.</summary>
     public const string Delay = "delay";
 
-    /// <summary>Жалоба на спам.</summary>
+    /// <summary>A spam complaint.</summary>
     public const string SpamComplaint = "spam_complaint";
 
-    /// <summary>Открытие письма.</summary>
+    /// <summary>The message was opened.</summary>
     public const string Open = "open";
 
-    /// <summary>Открытие, зафиксированное пикселем начального открытия.</summary>
+    /// <summary>An open recorded by the initial open pixel.</summary>
     public const string InitialOpen = "initial_open";
 
-    /// <summary>Переход по ссылке.</summary>
+    /// <summary>A link was clicked.</summary>
     public const string Click = "click";
 
-    /// <summary>Открытие AMP-версии.</summary>
+    /// <summary>The AMP part was opened.</summary>
     public const string AmpOpen = "amp_open";
 
-    /// <summary>Начальное открытие AMP-версии.</summary>
+    /// <summary>An initial open of the AMP part.</summary>
     public const string AmpInitialOpen = "amp_initial_open";
 
-    /// <summary>Переход по ссылке в AMP-версии.</summary>
+    /// <summary>A link in the AMP part was clicked.</summary>
     public const string AmpClick = "amp_click";
 
-    /// <summary>Не удалось сформировать письмо.</summary>
+    /// <summary>The message could not be generated.</summary>
     public const string GenerationFailure = "generation_failure";
 
-    /// <summary>Формирование письма отклонено.</summary>
+    /// <summary>Message generation was rejected.</summary>
     public const string GenerationRejection = "generation_rejection";
 
-    /// <summary>Отписка через заголовок List-Unsubscribe.</summary>
+    /// <summary>An unsubscribe through the List-Unsubscribe header.</summary>
     public const string ListUnsubscribe = "list_unsubscribe";
 
-    /// <summary>Отписка по ссылке в письме.</summary>
+    /// <summary>An unsubscribe through a link in the message.</summary>
     public const string LinkUnsubscribe = "link_unsubscribe";
 
-    /// <summary>Входящее письмо принято relay-вебхуком.</summary>
+    /// <summary>An inbound message was accepted by a relay webhook.</summary>
     public const string RelayInjection = "relay_injection";
 
-    /// <summary>Входящее письмо отклонено.</summary>
+    /// <summary>An inbound message was rejected.</summary>
     public const string RelayRejection = "relay_rejection";
 
-    /// <summary>Входящее письмо доставлено вашему эндпоинту.</summary>
+    /// <summary>An inbound message was delivered to your endpoint.</summary>
     public const string RelayDelivery = "relay_delivery";
 
-    /// <summary>Временная ошибка доставки входящего письма.</summary>
+    /// <summary>A temporary failure delivering an inbound message.</summary>
     public const string RelayTempfail = "relay_tempfail";
 
-    /// <summary>Постоянная ошибка доставки входящего письма.</summary>
+    /// <summary>A permanent failure delivering an inbound message.</summary>
     public const string RelayPermfail = "relay_permfail";
 
-    /// <summary>A/B-тест завершён.</summary>
+    /// <summary>An A/B test completed.</summary>
     public const string AbTestCompleted = "ab_test_completed";
 
-    /// <summary>A/B-тест отменён.</summary>
+    /// <summary>An A/B test was cancelled.</summary>
     public const string AbTestCancelled = "ab_test_cancelled";
 }

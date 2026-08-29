@@ -6,229 +6,229 @@ using SparkPoster.Internal;
 namespace SparkPoster.Webhooks;
 
 /// <summary>
-/// Событие из батча вебхука.
+/// An event from a webhook batch.
 /// </summary>
 /// <remarks>
-/// Типизированы наиболее употребимые поля; всё остальное, включая поля, добавленные
-/// SparkPost после выхода этой версии библиотеки, лежит в <see cref="Extra"/>.
-/// Незнакомый тип события не приводит к исключению — он становится
+/// The most commonly used fields are typed; everything else, including fields SparkPost
+/// added after this version of the library shipped, lives in <see cref="Extra"/>.
+/// An unfamiliar event type never raises an exception — it becomes an
 /// <see cref="UnknownSparkPostEvent"/>.
 /// </remarks>
 public abstract record SparkPostEvent
 {
-    /// <summary>Тип события: <c>delivery</c>, <c>bounce</c>, <c>open</c> и так далее.</summary>
-    /// <remarks>Известные значения перечислены в <see cref="SparkPostEventTypes"/>.</remarks>
+    /// <summary>The event type: <c>delivery</c>, <c>bounce</c>, <c>open</c> and so on.</summary>
+    /// <remarks>Known values are listed in <see cref="SparkPostEventTypes"/>.</remarks>
     public string? Type { get; init; }
 
-    /// <summary>Уникальный идентификатор события. Годится для защиты от повторной обработки.</summary>
+    /// <summary>The unique event identifier. Useful for guarding against duplicate processing.</summary>
     public string? EventId { get; init; }
 
-    /// <summary>Момент события.</summary>
+    /// <summary>When the event happened.</summary>
     [JsonConverter(typeof(UnixTimestampJsonConverter))]
     public DateTimeOffset? Timestamp { get; init; }
 
-    /// <summary>Кампания, в рамках которой отправлено письмо.</summary>
+    /// <summary>The campaign the message belonged to.</summary>
     public string? CampaignId { get; init; }
 
-    /// <summary>Письмо, породившее событие.</summary>
+    /// <summary>The transmission that produced the message.</summary>
     public string? TransmissionId { get; init; }
 
-    /// <summary>Идентификатор сообщения в SparkPost.</summary>
+    /// <summary>The message identifier within SparkPost.</summary>
     public string? MessageId { get; init; }
 
-    /// <summary>Адрес получателя в нижнем регистре.</summary>
+    /// <summary>The recipient address, lower cased.</summary>
     public string? RcptTo { get; init; }
 
-    /// <summary>Исходный адрес получателя.</summary>
+    /// <summary>The recipient address as originally given.</summary>
     public string? RawRcptTo { get; init; }
 
-    /// <summary>Тип получателя: <c>cc</c>, <c>bcc</c> или пусто для основного.</summary>
+    /// <summary>The recipient kind: <c>cc</c>, <c>bcc</c>, or empty for the primary recipient.</summary>
     public string? RcptType { get; init; }
 
-    /// <summary>Метаданные получателя, переданные при отправке.</summary>
+    /// <summary>Recipient metadata supplied at send time.</summary>
     public JsonNode? RcptMeta { get; init; }
 
-    /// <summary>Метки получателя.</summary>
+    /// <summary>Tags applied to the recipient.</summary>
     public IReadOnlyList<string>? RcptTags { get; init; }
 
-    /// <summary>Субаккаунт, от лица которого отправлено письмо.</summary>
+    /// <summary>The subaccount the message was sent on behalf of.</summary>
     public string? SubaccountId { get; init; }
 
-    /// <summary>Шаблон, по которому построено письмо.</summary>
+    /// <summary>The template the message was built from.</summary>
     public string? TemplateId { get; init; }
 
-    /// <summary>Версия шаблона.</summary>
+    /// <summary>The template version.</summary>
     public string? TemplateVersion { get; init; }
 
-    /// <summary>Значение заголовка From исходного письма.</summary>
+    /// <summary>The From header of the original message.</summary>
     public string? FriendlyFrom { get; init; }
 
-    /// <summary>Тема письма.</summary>
+    /// <summary>The subject line.</summary>
     public string? Subject { get; init; }
 
-    /// <summary>Пул IP-адресов, через который отправлено письмо.</summary>
+    /// <summary>The IP pool the message was sent through.</summary>
     public string? IpPool { get; init; }
 
-    /// <summary>Было ли письмо помечено транзакционным.</summary>
+    /// <summary>Whether the transmission was marked transactional.</summary>
     public string? Transactional { get; init; }
 
     /// <summary>
-    /// Поля, которых нет среди типизированных, — включая появившиеся в API уже после
-    /// выхода этой версии библиотеки. Ничего не теряется.
+    /// Fields that are not among the typed ones — including those that appeared in the API
+    /// after this version of the library shipped. Nothing is lost.
     /// </summary>
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? Extra { get; set; }
 }
 
 /// <summary>
-/// Событие жизненного цикла письма: приём, доставка, отбойник, задержка, жалоба.
-/// Категория <c>message_event</c>.
+/// A message lifecycle event: injection, delivery, bounce, delay, complaint.
+/// The <c>message_event</c> category.
 /// </summary>
 public sealed record MessageEvent : SparkPostEvent
 {
-    /// <summary>Классификационный код отбойника.</summary>
+    /// <summary>The bounce classification code.</summary>
     public string? BounceClass { get; init; }
 
-    /// <summary>Код ошибки принимающего сервера.</summary>
+    /// <summary>The error code returned by the receiving server.</summary>
     public string? ErrorCode { get; init; }
 
-    /// <summary>Приведённый к канонической форме ответ принимающего сервера.</summary>
+    /// <summary>The canonicalized response of the receiving server.</summary>
     public string? Reason { get; init; }
 
-    /// <summary>Дословный ответ принимающего сервера.</summary>
+    /// <summary>The verbatim response of the receiving server.</summary>
     public string? RawReason { get; init; }
 
-    /// <summary>Сколько попыток доставки не удалось до этой.</summary>
+    /// <summary>How many delivery attempts failed before this one.</summary>
     public string? NumRetries { get; init; }
 
-    /// <summary>IP, с которого отправлено письмо.</summary>
+    /// <summary>The IP the message was sent from.</summary>
     public string? SendingIp { get; init; }
 
-    /// <summary>IP хоста, которому доставлено письмо.</summary>
+    /// <summary>The IP of the host the message was delivered to.</summary>
     public string? IpAddress { get; init; }
 
-    /// <summary>Домен получателя.</summary>
+    /// <summary>The recipient domain.</summary>
     public string? RecipientDomain { get; init; }
 
-    /// <summary>Домен, принимающий письмо.</summary>
+    /// <summary>The domain receiving the message.</summary>
     public string? RoutingDomain { get; init; }
 
-    /// <summary>Размер письма в байтах.</summary>
+    /// <summary>The message size in bytes.</summary>
     public string? MsgSize { get; init; }
 
-    /// <summary>Протокол доставки.</summary>
+    /// <summary>The delivery protocol.</summary>
     public string? DelvMethod { get; init; }
 
-    /// <summary>Почтовый провайдер получателя.</summary>
+    /// <summary>The recipient's mailbox provider.</summary>
     public string? MailboxProvider { get; init; }
 
-    /// <summary>Регион почтового провайдера.</summary>
+    /// <summary>The region of the mailbox provider.</summary>
     public string? MailboxProviderRegion { get; init; }
 
-    /// <summary>Когда письмо было принято в SparkPost.</summary>
+    /// <summary>When the message was injected into SparkPost.</summary>
     public string? InjectionTime { get; init; }
 }
 
 /// <summary>
-/// Событие вовлечённости: открытие, переход по ссылке, их AMP-варианты.
-/// Категория <c>track_event</c>.
+/// An engagement event: an open, a click, or their AMP counterparts.
+/// The <c>track_event</c> category.
 /// </summary>
 public sealed record TrackEvent : SparkPostEvent
 {
-    /// <summary>User-Agent, с которого пришёл запрос.</summary>
+    /// <summary>The User-Agent the request came from.</summary>
     public string? UserAgent { get; init; }
 
-    /// <summary>IP, с которого пришёл запрос.</summary>
+    /// <summary>The IP the request came from.</summary>
     public string? IpAddress { get; init; }
 
-    /// <summary>Адрес ссылки, по которой перешли.</summary>
+    /// <summary>The URL of the link that was clicked.</summary>
     public string? TargetLinkUrl { get; init; }
 
-    /// <summary>Имя ссылки, по которой перешли.</summary>
+    /// <summary>The name of the link that was clicked.</summary>
     public string? TargetLinkName { get; init; }
 
-    /// <summary>Геоданные по IP.</summary>
+    /// <summary>Geolocation derived from the IP.</summary>
     public JsonNode? GeoIp { get; init; }
 
-    /// <summary>Открытие зафиксировано пикселем начального открытия.</summary>
+    /// <summary>The open was recorded by the initial open pixel.</summary>
     public string? InitialPixel { get; init; }
 }
 
 /// <summary>
-/// Событие формирования письма: не удалось построить или построение отклонено.
-/// Категория <c>gen_event</c>.
+/// A generation event: the message could not be built, or building it was rejected.
+/// The <c>gen_event</c> category.
 /// </summary>
 public sealed record GenerationEvent : SparkPostEvent
 {
-    /// <summary>Код ошибки.</summary>
+    /// <summary>The error code.</summary>
     public string? ErrorCode { get; init; }
 
-    /// <summary>Причина отказа.</summary>
+    /// <summary>The reason for the failure.</summary>
     public string? Reason { get; init; }
 
-    /// <summary>Дословная причина отказа.</summary>
+    /// <summary>The verbatim reason for the failure.</summary>
     public string? RawReason { get; init; }
 
-    /// <summary>Данные подстановки получателя.</summary>
+    /// <summary>The recipient's substitution data.</summary>
     public JsonNode? RcptSubs { get; init; }
 }
 
 /// <summary>
-/// Отписка — по заголовку List-Unsubscribe или по ссылке в письме.
-/// Категория <c>unsubscribe_event</c>.
+/// An unsubscribe, either through the List-Unsubscribe header or through a link in the
+/// message. The <c>unsubscribe_event</c> category.
 /// </summary>
 public sealed record UnsubscribeEvent : SparkPostEvent
 {
-    /// <summary>Адрес, с которого пришёл запрос на отписку.</summary>
+    /// <summary>The address the unsubscribe request came from.</summary>
     public string? MailFrom { get; init; }
 
-    /// <summary>User-Agent, с которого пришёл запрос.</summary>
+    /// <summary>The User-Agent the request came from.</summary>
     public string? UserAgent { get; init; }
 
-    /// <summary>IP, с которого пришёл запрос.</summary>
+    /// <summary>The IP the request came from.</summary>
     public string? IpAddress { get; init; }
 }
 
 /// <summary>
-/// Событие входящей почты (relay). Категория <c>relay_event</c>.
+/// An inbound mail (relay) event. The <c>relay_event</c> category.
 /// </summary>
 public sealed record RelayEvent : SparkPostEvent
 {
-    /// <summary>Идентификатор relay-события.</summary>
+    /// <summary>The relay event identifier.</summary>
     public string? RelayId { get; init; }
 
-    /// <summary>Вебхук, принявший письмо.</summary>
+    /// <summary>The webhook that accepted the message.</summary>
     public string? WebhookId { get; init; }
 
-    /// <summary>Протокол приёма.</summary>
+    /// <summary>The protocol the message was received over.</summary>
     public string? Protocol { get; init; }
 
-    /// <summary>Содержимое входящего письма.</summary>
+    /// <summary>The content of the inbound message.</summary>
     public JsonNode? Content { get; init; }
 
-    /// <summary>Отправитель на уровне SMTP-конверта.</summary>
+    /// <summary>The sender on the SMTP envelope.</summary>
     public string? MsgFrom { get; init; }
 
-    /// <summary>Причина отказа.</summary>
+    /// <summary>The reason for the failure.</summary>
     public string? Reason { get; init; }
 
-    /// <summary>Код ошибки.</summary>
+    /// <summary>The error code.</summary>
     public string? ErrorCode { get; init; }
 }
 
 /// <summary>
-/// Событие из категории, которой библиотека не знает.
+/// An event from a category this library does not know.
 /// </summary>
 /// <remarks>
-/// Существует, чтобы новая категория событий в SparkPost не роняла обработчик:
-/// упавший обработчик заставляет SparkPost повторять весь батч, включая уже
-/// обработанные события.
+/// It exists so that a new SparkPost event category cannot take down your handler:
+/// a handler that throws makes SparkPost resend the entire batch, including the events
+/// it had already processed.
 /// </remarks>
 public sealed record UnknownSparkPostEvent : SparkPostEvent
 {
-    /// <summary>Имя категории, как она пришла внутри <c>msys</c>.</summary>
+    /// <summary>The category name exactly as it arrived inside <c>msys</c>.</summary>
     public string Category { get; init; } = string.Empty;
 
-    /// <summary>Тело события целиком, как пришло.</summary>
+    /// <summary>The whole event body as received.</summary>
     public JsonNode? Raw { get; init; }
 }

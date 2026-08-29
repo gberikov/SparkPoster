@@ -1,24 +1,24 @@
 namespace SparkPoster;
 
-/// <summary>Настройки клиента SparkPost.</summary>
+/// <summary>Configuration for the SparkPost client.</summary>
 public sealed class SparkPostOptions
 {
     /// <summary>
-    /// API-ключ. Хранить его следует в переменных окружения или secret-хранилище —
-    /// не в <c>appsettings.json</c> под контролем версий.
+    /// The API key. Keep it in environment variables or a secret store — never in an
+    /// <c>appsettings.json</c> that is under version control.
     /// </summary>
     public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// Базовый адрес API. По умолчанию <see cref="SparkPostEndpoints.Us"/>;
-    /// для европейского аккаунта — <see cref="SparkPostEndpoints.Eu"/>.
-    /// У Enterprise-аккаунтов бывает собственный адрес.
+    /// The API base address. Defaults to <see cref="SparkPostEndpoints.Us"/>; use
+    /// <see cref="SparkPostEndpoints.Eu"/> for an EU account. Enterprise accounts may
+    /// have their own endpoint.
     /// </summary>
     public Uri BaseUrl { get; set; } = SparkPostEndpoints.Us;
 
     /// <summary>
-    /// Субаккаунт по умолчанию для всех запросов клиента. Обычно не задаётся:
-    /// точечно область действия удобнее менять через <see cref="ISparkPostClient.ForSubaccount"/>.
+    /// The default subaccount for every request this client makes. Usually left unset:
+    /// <see cref="ISparkPostClient.ForSubaccount"/> is the better way to scope individual calls.
     /// </summary>
     public int? SubaccountId { get; set; }
 }

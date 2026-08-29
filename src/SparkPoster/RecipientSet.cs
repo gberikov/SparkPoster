@@ -4,11 +4,11 @@ using SparkPoster.Internal;
 namespace SparkPoster;
 
 /// <summary>
-/// Получатели письма: либо перечисленные явно, либо ссылка на сохранённый список.
+/// The recipients of a transmission: either listed explicitly or referenced as a stored list.
 /// </summary>
 /// <remarks>
-/// В JSON эти два варианта выглядят по-разному — массив против объекта с <c>list_id</c>, —
-/// поэтому они и объединены в один тип.
+/// The two forms look different on the wire — an array versus an object with <c>list_id</c> —
+/// which is exactly why they are united in a single type.
 /// </remarks>
 [JsonConverter(typeof(RecipientSetJsonConverter))]
 public sealed class RecipientSet
@@ -19,27 +19,27 @@ public sealed class RecipientSet
         ListId = listId;
     }
 
-    /// <summary>Явно перечисленные получатели. <c>null</c>, если используется сохранённый список.</summary>
+    /// <summary>The explicitly listed recipients. <c>null</c> when a stored list is used.</summary>
     public IReadOnlyList<Recipient>? Items { get; }
 
-    /// <summary>Идентификатор сохранённого списка. <c>null</c>, если получатели перечислены явно.</summary>
+    /// <summary>The stored list identifier. <c>null</c> when recipients are listed explicitly.</summary>
     public string? ListId { get; }
 
-    /// <summary>Перечисляет получателей явно.</summary>
-    /// <param name="recipients">Получатели.</param>
-    /// <returns>Набор получателей.</returns>
+    /// <summary>Lists the recipients explicitly.</summary>
+    /// <param name="recipients">The recipients.</param>
+    /// <returns>The recipient set.</returns>
     public static RecipientSet Inline(IReadOnlyList<Recipient> recipients)
     {
         ArgumentNullException.ThrowIfNull(recipients);
         return new RecipientSet(recipients, listId: null);
     }
 
-    /// <summary>Ссылается на сохранённый список получателей.</summary>
-    /// <param name="listId">Идентификатор списка.</param>
-    /// <returns>Набор получателей.</returns>
+    /// <summary>References a stored recipient list.</summary>
+    /// <param name="listId">The list identifier.</param>
+    /// <returns>The recipient set.</returns>
     /// <remarks>
-    /// Переопределения на уровне получателя при таком варианте игнорируются,
-    /// а субаккаунты сохранённые списки не поддерживают вовсе.
+    /// Per-recipient overrides are ignored in this form, and subaccounts cannot use stored
+    /// lists at all.
     /// </remarks>
     public static RecipientSet StoredList(string listId)
     {

@@ -8,33 +8,33 @@ using SparkPoster.Webhooks;
 
 namespace Microsoft.AspNetCore.Builder;
 
-/// <summary>Приём вебхуков SparkPost.</summary>
+/// <summary>Receiving SparkPost webhooks.</summary>
 public static class SparkPostWebhookEndpointExtensions
 {
     /// <summary>
-    /// Заводит эндпоинт, который принимает батчи событий SparkPost.
+    /// Maps an endpoint that accepts SparkPost event batches.
     /// </summary>
-    /// <param name="endpoints">Маршруты приложения.</param>
-    /// <param name="pattern">Путь эндпоинта.</param>
-    /// <param name="handler">Обработчик батча.</param>
-    /// <param name="options">Проверка подлинности вызова.</param>
-    /// <returns>Построитель маршрута.</returns>
+    /// <param name="endpoints">The application's endpoint routes.</param>
+    /// <param name="pattern">The endpoint path.</param>
+    /// <param name="handler">The batch handler.</param>
+    /// <param name="options">How to prove the call genuine.</param>
+    /// <returns>The endpoint convention builder.</returns>
     /// <remarks>
     /// <para>
-    /// Семантика ответов подчинена тому, как SparkPost повторяет доставку: успешная
-    /// обработка отвечает 200, а исключение из <paramref name="handler"/> не подавляется
-    /// и превращается в 500 — тогда SparkPost повторит батч. Повторы идут в течение
-    /// 8 часов, после чего батч отбрасывается, поэтому глотать исключения здесь нельзя:
-    /// это молча превратит доставку «хотя бы один раз» в «не более одного раза».
+    /// The response semantics follow how SparkPost retries: a successful handler answers 200,
+    /// while an exception from <paramref name="handler"/> is deliberately not swallowed and
+    /// surfaces as a 500 — which makes SparkPost resend the batch. Retries run for 8 hours,
+    /// after which the batch is discarded, so swallowing exceptions here is not an option:
+    /// it silently turns at-least-once delivery into at-most-once.
     /// </para>
     /// <para>
-    /// Обработчик должен укладываться в 10 секунд — столько SparkPost ждёт ответа.
-    /// Если обработка дольше, складывайте батч в очередь и разбирайте отдельно, но
-    /// помните, что тогда за сохранность отвечаете вы, а не SparkPost.
+    /// The handler has to finish within 10 seconds, which is how long SparkPost waits for the
+    /// response. If your processing takes longer, queue the batch and handle it separately —
+    /// but note that from then on its safekeeping is your responsibility, not SparkPost's.
     /// </para>
     /// <para>
-    /// Батчи приходят без гарантии порядка и могут повторяться: отсекайте повторы
-    /// по <see cref="SparkPostEventBatch.BatchId"/> или <see cref="SparkPostEvent.EventId"/>.
+    /// Batches arrive unordered and may repeat: deduplicate on
+    /// <see cref="SparkPostEventBatch.BatchId"/> or <see cref="SparkPostEvent.EventId"/>.
     /// </para>
     /// </remarks>
     public static IEndpointConventionBuilder MapSparkPostWebhook(
@@ -92,8 +92,8 @@ public static class SparkPostWebhookEndpointExtensions
     }
 
     /// <summary>
-    /// Сравнение за постоянное время: обычное сравнение строк завершается на первом
-    /// несовпавшем символе и тем самым выдаёт секрет по времени ответа.
+    /// A constant-time comparison: ordinary string comparison stops at the first mismatching
+    /// character and thereby leaks the secret through response timing.
     /// </summary>
     private static bool FixedTimeEquals(string? actual, string? expected)
     {

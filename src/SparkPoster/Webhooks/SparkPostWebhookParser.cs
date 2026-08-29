@@ -4,30 +4,30 @@ using SparkPoster.Internal;
 namespace SparkPoster.Webhooks;
 
 /// <summary>
-/// Разбор батча событий, который SparkPost присылает на ваш эндпоинт.
+/// Parses the event batches SparkPost posts to your endpoint.
 /// </summary>
 /// <remarks>
 /// <para>
-/// У вебхуков SparkPost <b>нет подписи</b>: подлинность вызова подтверждается только тем,
-/// что вы настроили при создании вебхука — Basic-авторизацией, OAuth или секретным
-/// заголовком. Эндпоинт обязан работать по HTTPS и проверять этот секрет, иначе кто угодно
-/// сможет присылать вам поддельные события об отбойниках и отписках.
+/// SparkPost webhooks carry <b>no signature</b>: a call is only proven genuine by whatever you
+/// configured when creating the webhook — Basic authentication, OAuth, or a secret header.
+/// Your endpoint must run over HTTPS and must check that secret, otherwise anyone can feed you
+/// forged bounce and unsubscribe events.
 /// </para>
 /// <para>
-/// Доставка «хотя бы один раз» и без гарантии порядка: батч без ответа 200 повторяется
-/// в течение 8 часов. Защищаться от повторов следует по
-/// <see cref="SparkPostEventBatch.BatchId"/> или по <see cref="SparkPostEvent.EventId"/>.
+/// Delivery is at-least-once and unordered: a batch that does not get a 200 is retried for
+/// 8 hours. Deduplicate on <see cref="SparkPostEventBatch.BatchId"/> or on
+/// <see cref="SparkPostEvent.EventId"/>.
 /// </para>
 /// </remarks>
 public static class SparkPostWebhookParser
 {
-    /// <summary>Имя заголовка, в котором приходит идентификатор батча.</summary>
+    /// <summary>The header carrying the batch identifier.</summary>
     public const string BatchIdHeader = "X-MessageSystems-Batch-ID";
 
-    /// <summary>Разбирает батч из строки.</summary>
-    /// <param name="json">Тело запроса.</param>
-    /// <returns>События батча.</returns>
-    /// <exception cref="System.Text.Json.JsonException">Тело не является корректным JSON.</exception>
+    /// <summary>Parses a batch from a string.</summary>
+    /// <param name="json">The request body.</param>
+    /// <returns>The events of the batch.</returns>
+    /// <exception cref="System.Text.Json.JsonException">The body is not valid JSON.</exception>
     public static IReadOnlyList<SparkPostEvent> Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
@@ -35,11 +35,11 @@ public static class SparkPostWebhookParser
         return SparkPostEventReader.Read(JsonNode.Parse(json));
     }
 
-    /// <summary>Разбирает батч из потока.</summary>
-    /// <param name="stream">Тело запроса.</param>
-    /// <param name="cancellationToken">Токен отмены.</param>
-    /// <returns>События батча.</returns>
-    /// <exception cref="System.Text.Json.JsonException">Тело не является корректным JSON.</exception>
+    /// <summary>Parses a batch from a stream.</summary>
+    /// <param name="stream">The request body.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The events of the batch.</returns>
+    /// <exception cref="System.Text.Json.JsonException">The body is not valid JSON.</exception>
     public static async Task<IReadOnlyList<SparkPostEvent>> ParseAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
@@ -52,15 +52,15 @@ public static class SparkPostWebhookParser
     }
 }
 
-/// <summary>Батч событий вместе с его идентификатором.</summary>
+/// <summary>A batch of events together with its identifier.</summary>
 public sealed record SparkPostEventBatch
 {
     /// <summary>
-    /// Идентификатор батча из заголовка <see cref="SparkPostWebhookParser.BatchIdHeader"/>.
-    /// По нему отсекаются повторные доставки одного и того же батча.
+    /// The batch identifier from the <see cref="SparkPostWebhookParser.BatchIdHeader"/> header.
+    /// Use it to discard repeated deliveries of the same batch.
     /// </summary>
     public string? BatchId { get; init; }
 
-    /// <summary>События батча.</summary>
+    /// <summary>The events of the batch.</summary>
     public required IReadOnlyList<SparkPostEvent> Events { get; init; }
 }

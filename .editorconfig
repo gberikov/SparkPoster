@@ -30,12 +30,12 @@ dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
 dotnet_style_object_initializer = true:suggestion
 dotnet_style_collection_initializer = true:suggestion
 
-# Библиотечный код: забытый ConfigureAwait(false) должен ломать сборку у нас,
-# а не приложение потребителя. В тестах это правило не нужно и только мешает.
+# Library code: a forgotten ConfigureAwait(false) must break our build rather than the
+# consumer application. Tests do not need this rule and it only gets in the way there.
 [src/**/*.cs]
 dotnet_diagnostic.CA2007.severity = error
 
-# Имя теста — это формулировка проверки, а не идентификатор для внешнего потребителя:
-# подчёркивания здесь читаемость повышают.
+# A test name states what is being verified rather than naming an API for consumers:
+# underscores make it more readable, not less.
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none

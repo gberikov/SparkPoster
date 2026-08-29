@@ -7,7 +7,7 @@ namespace SparkPoster.Internal;
 
 internal sealed class WebhooksResource : IWebhooks
 {
-    /// <summary>Батч, который SparkPost отправляет на эндпоинт при проверке.</summary>
+    /// <summary>The batch SparkPost posts to the target when validating a webhook.</summary>
     private const string ValidationBatch = """[{"msys":{}}]""";
 
     private readonly SparkPostRequester _requester;
