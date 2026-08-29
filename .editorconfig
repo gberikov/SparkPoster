@@ -34,3 +34,8 @@ dotnet_style_collection_initializer = true:suggestion
 # а не приложение потребителя. В тестах это правило не нужно и только мешает.
 [src/**/*.cs]
 dotnet_diagnostic.CA2007.severity = error
+
+# Имя теста — это формулировка проверки, а не идентификатор для внешнего потребителя:
+# подчёркивания здесь читаемость повышают.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
