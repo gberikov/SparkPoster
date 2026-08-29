@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 
 namespace SparkPoster.Internal;
@@ -56,6 +57,40 @@ internal sealed class SparkPostRequester
         }
 
         return response;
+    }
+
+    /// <summary>Отправляет запрос и разбирает конверт ответа.</summary>
+    public async Task<T> SendAndReadAsync<T>(
+        HttpRequestMessage request,
+        JsonTypeInfo<SparkPostEnvelope<T>> typeInfo,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        return await ReadResultsAsync(response, typeInfo, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Отправляет запрос, тело ответа которого не нужно.</summary>
+    public async Task SendIgnoringResultAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Отправляет запрос и возвращает содержимое <c>results</c> без разбора в модель.
+    /// Нужно для справочных эндпоинтов, структура которых меняется вместе с API.
+    /// </summary>
+    public async Task<JsonNode> SendAndReadRawAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        await using (stream.ConfigureAwait(false))
+        {
+            var document = await JsonNode.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false)
+                ?? throw new SparkPostException("SparkPost вернул пустой ответ.");
+
+            return document["results"] ?? document;
+        }
     }
 
     public static async Task<T> ReadResultsAsync<T>(
