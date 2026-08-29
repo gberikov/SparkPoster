@@ -13,7 +13,7 @@ public sealed class ContentFormsTests
     private static readonly JsonSerializerOptions SnakeCase = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
     [Fact]
-    public async Task Шаблон_сериализуется_в_template_id()
+    public async Task Template_serializes_to_template_id()
     {
         var body = await CaptureBodyAsync(
             Transmission.Create()
@@ -32,7 +32,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task AB_тест_сериализуется_в_ab_test_id()
+    public async Task AbTest_serializes_to_ab_test_id()
     {
         var body = await CaptureBodyAsync(
             Transmission.Create().To("user@example.com").AbTest("subject-test").Build());
@@ -48,7 +48,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Rfc822_сериализуется_в_email_rfc822()
+    public async Task Rfc822_serializes_to_email_rfc822()
     {
         var body = await CaptureBodyAsync(
             Transmission.Create().To("user@example.com").RawRfc822("From: a@b.io\r\n\r\nhi").Build());
@@ -64,7 +64,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Вложение_кодируется_в_base64()
+    public async Task Attachment_is_base64_encoded()
     {
         var body = await CaptureBodyAsync(
             Transmission.Create()
@@ -82,7 +82,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Встроенное_изображение_уходит_в_inline_images()
+    public async Task Inline_image_goes_to_inline_images()
     {
         var body = await CaptureBodyAsync(
             Transmission.Create()
@@ -96,7 +96,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Копии_становятся_получателями_с_подменённым_заголовком_To()
+    public async Task Cc_and_bcc_become_recipients_with_overridden_header_to()
     {
         var body = await CaptureBodyAsync(
             Transmission.Create()
@@ -120,7 +120,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Сохранённый_список_сериализуется_объектом()
+    public async Task Stored_list_serializes_as_an_object()
     {
         var body = await CaptureBodyAsync(
             Transmission.Create().RecipientList("christmas_2013").Template("promo").Build());
@@ -136,7 +136,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Отложенная_отправка_попадает_в_options()
+    public async Task Scheduled_send_goes_into_options()
     {
         var startTime = new DateTimeOffset(2026, 9, 1, 14, 30, 0, TimeSpan.FromHours(6));
 
@@ -154,7 +154,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public void Смешение_форм_содержимого_отвергается()
+    public void Mixing_content_forms_is_rejected()
     {
         var builder = Transmission.Create()
             .From("noreply@example.com")
@@ -169,7 +169,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public void Сохранённый_список_вместе_с_явными_получателями_отвергается()
+    public void Stored_list_combined_with_explicit_recipients_is_rejected()
     {
         var builder = Transmission.Create()
             .To("user@example.com")
@@ -182,7 +182,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public void Шаблону_отправитель_не_нужен()
+    public void Template_does_not_require_a_sender()
     {
         var request = Transmission.Create().To("user@example.com").Template("promo").Build();
 
@@ -191,7 +191,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Отмена_кампании_уходит_delete_запросом()
+    public async Task Campaign_cancellation_is_sent_as_delete()
     {
         var handler = FakeHttpMessageHandler.Returning(HttpStatusCode.NoContent, string.Empty);
         var client = new SparkPostClient(handler.CreateClient(), new SparkPostOptions { ApiKey = "test-key" });
@@ -207,7 +207,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Запрос_переживает_сериализацию_и_обратный_разбор()
+    public async Task Request_survives_a_serialization_round_trip()
     {
         var original = Transmission.Create()
             .From("noreply@example.com", "Example")
@@ -227,7 +227,7 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
-    public async Task Сохранённый_список_переживает_обратный_разбор()
+    public async Task Stored_list_survives_a_serialization_round_trip()
     {
         var json = await CaptureBodyAsync(
             Transmission.Create().RecipientList("christmas_2013").Template("promo").Build());
