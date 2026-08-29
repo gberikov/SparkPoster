@@ -8,6 +8,9 @@ public interface ISparkPostClient
     /// <summary>Отправка писем.</summary>
     ITransmissions Transmissions { get; }
 
+    /// <summary>Управление вебхуками событий.</summary>
+    IWebhooks Webhooks { get; }
+
     /// <summary>
     /// Возвращает клиента, работающего от лица субаккаунта.
     /// </summary>
@@ -48,10 +51,14 @@ public sealed class SparkPostClient : ISparkPostClient
 
         var requester = new SparkPostRequester(httpClient, options, subaccountId);
         Transmissions = new TransmissionsResource(requester);
+        Webhooks = new WebhooksResource(requester);
     }
 
     /// <inheritdoc />
     public ITransmissions Transmissions { get; }
+
+    /// <inheritdoc />
+    public IWebhooks Webhooks { get; }
 
     /// <inheritdoc />
     public ISparkPostClient ForSubaccount(int subaccountId) =>

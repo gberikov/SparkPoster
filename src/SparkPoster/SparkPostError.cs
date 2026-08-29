@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using SparkPoster.Internal;
+
 namespace SparkPoster;
 
 /// <summary>
@@ -16,5 +19,7 @@ public sealed record SparkPostError
     public string? Description { get; init; }
 
     /// <summary>Код ошибки SparkPost (например, <c>1600</c> — повторное использование ключа идемпотентности).</summary>
+    /// <remarks>Приходит то строкой, то числом — в зависимости от эндпоинта.</remarks>
+    [JsonConverter(typeof(FlexibleStringJsonConverter))]
     public string? Code { get; init; }
 }

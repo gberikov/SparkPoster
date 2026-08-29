@@ -11,3 +11,9 @@ internal sealed class SparkPostErrorEnvelope
 {
     public List<SparkPostError>? Errors { get; set; }
 }
+
+/// <summary>Ответ на создание ресурса: интересен только идентификатор.</summary>
+internal sealed class CreatedResource
+{
+    public string Id { get; set; } = string.Empty;
+}
