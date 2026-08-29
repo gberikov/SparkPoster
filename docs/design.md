@@ -97,6 +97,9 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
 
 ## 4. Порядок работ
 
+Состав v1.0 из решения №4 закрыт целиком: шаги 1–7 сделаны, 93 теста зелёные.
+Каждый шаг — своя feature-ветка, влитая в `develop` через `--no-ff`.
+
 1. **Каркас**: `global.json`, `Directory.Build.props`, `Directory.Packages.props`,
    `src/Directory.Build.props`, `.editorconfig`, `LICENSE`, три проекта в `src/`.
    Версионный тег не ставим: по git flow он появляется на `master` при релизе через
@@ -112,16 +115,28 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { });
 6. Events: `GetPageAsync` + `IAsyncEnumerable`.
 7. Templates → Suppression List → Sending Domains.
 
-## 5. Проверить эмпирически при реализации
+## 5. Что выяснилось по ходу
 
-- Формат `timestamp` в событиях вебхуков и `start_time` у транзакции (наружу — `DateTimeOffset`).
-- Имя заголовка replay: документация расходится — `X-Idempotent-Replayed: true` в одном месте,
-  `Idempotency-Replay` в другом. Проверить по живому ответу.
-- Полный список полей по категориям событий (`message_event`, `track_event`, `gen_event`,
-  `unsubscribe_event`, `relay_event`) — брать из `GET /webhooks/events/documentation`
-  и `GET /webhooks/events/samples`.
+Закрыто:
+
+- **Формат времени.** В вебхуках `timestamp` — секунды эпохи Unix строкой, в Events API —
+  ISO 8601 с миллисекундами. Один конвертер принимает обе формы плюс число; оба случая под тестом.
+- **Заголовок повтора.** В легаси-API это `X-Idempotent-Replayed`; `Idempotency-Replay`
+  встретился только в документации Bird. Читаются оба — стоит это ничего.
+- **Числа-строки.** SparkPost отдаёт одни и те же числовые поля то числами, то строками
+  (`response_code` в статусе батча), а `code` в ошибке — наоборот, то строкой, то числом.
+  Лечится `AllowReadingFromString` в контексте и отдельным конвертером для `code`.
+  Без второго разбор тела ошибки падал молча — вскрылось тестом.
+- **Форма `links`.** У курсорной пагинации встречается и объект с `next`, и массив `rel`/`href`.
+  Читаются обе.
+
+Осталось проверить на живом аккаунте:
+
+- Полный список полей по категориям событий — брать из `GET /webhooks/events/documentation`
+  и `GET /webhooks/events/samples`; типизировано только употребимое, остальное лежит в `Extra`.
 - Поведение 409 с кодами `1600` (тот же ключ, другое тело — ошибка вызывающего) и
   `1601` (запрос ещё выполняется — повторяемо).
+- Формат `start_time` у отложенной транзакции: отправляем ISO 8601 с офсетом.
 
 ## 6. Отложено сознательно
 
