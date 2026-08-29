@@ -11,6 +11,9 @@ public interface ISparkPostClient
     /// <summary>Managing event webhooks.</summary>
     IWebhooks Webhooks { get; }
 
+    /// <summary>Searching recent events.</summary>
+    IEvents Events { get; }
+
     /// <summary>
     /// Returns a client that acts on behalf of a subaccount.
     /// </summary>
@@ -52,6 +55,7 @@ public sealed class SparkPostClient : ISparkPostClient
         var requester = new SparkPostRequester(httpClient, options, subaccountId);
         Transmissions = new TransmissionsResource(requester);
         Webhooks = new WebhooksResource(requester);
+        Events = new EventsResource(requester);
     }
 
     /// <inheritdoc />
@@ -59,6 +63,9 @@ public sealed class SparkPostClient : ISparkPostClient
 
     /// <inheritdoc />
     public IWebhooks Webhooks { get; }
+
+    /// <inheritdoc />
+    public IEvents Events { get; }
 
     /// <inheritdoc />
     public ISparkPostClient ForSubaccount(int subaccountId) =>

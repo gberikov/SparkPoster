@@ -93,6 +93,24 @@ internal sealed class SparkPostRequester
         }
     }
 
+    /// <summary>
+    /// Sends a request and returns the whole response document. Needed where the envelope
+    /// itself carries data, such as the events cursor in <c>links.next</c>.
+    /// </summary>
+    public async Task<JsonNode> SendAndReadDocumentAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        await using (stream.ConfigureAwait(false))
+        {
+            return await JsonNode.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false)
+                ?? throw new SparkPostException("SparkPost returned an empty response.");
+        }
+    }
+
     public static async Task<T> ReadResultsAsync<T>(
         HttpResponseMessage response,
         JsonTypeInfo<SparkPostEnvelope<T>> typeInfo,
