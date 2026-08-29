@@ -1,0 +1,23 @@
+<Project>
+
+  <!-- Корневой Directory.Build.props MSBuild сам НЕ подхватит: он останавливается на
+       первом найденном вверх по дереву. Поэтому импортируем явно. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- Тесты не поставляются, поэтому TFM у них свой: на net10.0 доступен
+         JsonNode.DeepEquals, которым сравниваются эталонные тела запросов.
+         Библиотека при этом остаётся на net8.0. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- xUnit v3 собирает тестовый проект в исполняемый файл. -->
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

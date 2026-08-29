@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SparkPoster\SparkPoster.csproj" />
+    <ProjectReference Include="..\..\src\SparkPoster.Extensions.DependencyInjection\SparkPoster.Extensions.DependencyInjection.csproj" />
+  </ItemGroup>
+
+</Project>
