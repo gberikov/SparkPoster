@@ -23,7 +23,7 @@ namespace SparkPoster.Internal;
 [JsonSerializable(typeof(List<Recipient>))]
 [JsonSerializable(typeof(IReadOnlyList<Recipient>))]
 [JsonSerializable(typeof(WebhookRequest))]
-[JsonSerializable(typeof(SparkPostEnvelope<CreatedResource>), TypeInfoPropertyName = "WebhookIdEnvelope")]
+[JsonSerializable(typeof(SparkPostEnvelope<CreatedResource>), TypeInfoPropertyName = "CreatedResourceEnvelope")]
 [JsonSerializable(typeof(SparkPostEnvelope<Webhook>), TypeInfoPropertyName = "WebhookEnvelope")]
 [JsonSerializable(typeof(SparkPostEnvelope<IReadOnlyList<Webhook>>), TypeInfoPropertyName = "WebhookListEnvelope")]
 [JsonSerializable(typeof(SparkPostEnvelope<WebhookValidationResult>), TypeInfoPropertyName = "WebhookValidationEnvelope")]
@@ -35,5 +35,9 @@ namespace SparkPoster.Internal;
 [JsonSerializable(typeof(GenerationEvent))]
 [JsonSerializable(typeof(UnsubscribeEvent))]
 [JsonSerializable(typeof(RelayEvent))]
+[JsonSerializable(typeof(TemplateRequest))]
+[JsonSerializable(typeof(SparkPostEnvelope<Template>), TypeInfoPropertyName = "TemplateEnvelope")]
+[JsonSerializable(typeof(SparkPostEnvelope<IReadOnlyList<Template>>), TypeInfoPropertyName = "TemplateListEnvelope")]
+[JsonSerializable(typeof(SparkPostEnvelope<TemplateContent>), TypeInfoPropertyName = "TemplateContentEnvelope")]
 [JsonSerializable(typeof(string))]
 internal sealed partial class SparkPostJsonContext : JsonSerializerContext;

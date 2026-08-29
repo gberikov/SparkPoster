@@ -14,6 +14,9 @@ public interface ISparkPostClient
     /// <summary>Searching recent events.</summary>
     IEvents Events { get; }
 
+    /// <summary>Managing stored templates.</summary>
+    ITemplates Templates { get; }
+
     /// <summary>
     /// Returns a client that acts on behalf of a subaccount.
     /// </summary>
@@ -56,6 +59,7 @@ public sealed class SparkPostClient : ISparkPostClient
         Transmissions = new TransmissionsResource(requester);
         Webhooks = new WebhooksResource(requester);
         Events = new EventsResource(requester);
+        Templates = new TemplatesResource(requester);
     }
 
     /// <inheritdoc />
@@ -66,6 +70,9 @@ public sealed class SparkPostClient : ISparkPostClient
 
     /// <inheritdoc />
     public IEvents Events { get; }
+
+    /// <inheritdoc />
+    public ITemplates Templates { get; }
 
     /// <inheritdoc />
     public ISparkPostClient ForSubaccount(int subaccountId) =>
