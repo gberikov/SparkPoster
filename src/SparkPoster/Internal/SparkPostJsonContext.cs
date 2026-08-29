@@ -44,5 +44,10 @@ namespace SparkPoster.Internal;
 [JsonSerializable(typeof(IReadOnlyList<SuppressionEntry>))]
 [JsonSerializable(typeof(SparkPostEnvelope<IReadOnlyList<SuppressionEntry>>), TypeInfoPropertyName = "SuppressionListEnvelope")]
 [JsonSerializable(typeof(SparkPostEnvelope<SuppressionSummary>), TypeInfoPropertyName = "SuppressionSummaryEnvelope")]
+[JsonSerializable(typeof(SendingDomainRequest))]
+[JsonSerializable(typeof(DomainVerificationOptions))]
+[JsonSerializable(typeof(SparkPostEnvelope<SendingDomain>), TypeInfoPropertyName = "SendingDomainEnvelope")]
+[JsonSerializable(typeof(SparkPostEnvelope<IReadOnlyList<SendingDomain>>), TypeInfoPropertyName = "SendingDomainListEnvelope")]
+[JsonSerializable(typeof(SparkPostEnvelope<SendingDomainStatus>), TypeInfoPropertyName = "SendingDomainStatusEnvelope")]
 [JsonSerializable(typeof(string))]
 internal sealed partial class SparkPostJsonContext : JsonSerializerContext;

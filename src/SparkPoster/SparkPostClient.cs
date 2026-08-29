@@ -20,6 +20,9 @@ public interface ISparkPostClient
     /// <summary>Managing the suppression list.</summary>
     ISuppressionList SuppressionList { get; }
 
+    /// <summary>Managing sending domains.</summary>
+    ISendingDomains SendingDomains { get; }
+
     /// <summary>
     /// Returns a client that acts on behalf of a subaccount.
     /// </summary>
@@ -64,6 +67,7 @@ public sealed class SparkPostClient : ISparkPostClient
         Events = new EventsResource(requester);
         Templates = new TemplatesResource(requester);
         SuppressionList = new SuppressionListResource(requester);
+        SendingDomains = new SendingDomainsResource(requester);
     }
 
     /// <inheritdoc />
@@ -80,6 +84,9 @@ public sealed class SparkPostClient : ISparkPostClient
 
     /// <inheritdoc />
     public ISuppressionList SuppressionList { get; }
+
+    /// <inheritdoc />
+    public ISendingDomains SendingDomains { get; }
 
     /// <inheritdoc />
     public ISparkPostClient ForSubaccount(int subaccountId) =>
