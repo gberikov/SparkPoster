@@ -24,16 +24,22 @@ internal sealed class SparkPostRequester
     private static readonly string UserAgent = BuildUserAgent();
 
     private readonly HttpClient _http;
-    private readonly SparkPostOptions _options;
+    private readonly string _apiKey;
     private readonly Uri _baseUrl;
     private readonly int? _subaccountId;
 
+    /// <summary>
+    /// Everything is read from the options once, here. Holding on to the options object instead
+    /// would let a later <c>options.ApiKey = ...</c> walk straight past the validation the client
+    /// did at construction, while a later <c>BaseUrl</c> change would be ignored — two sources of
+    /// truth with different mutability.
+    /// </summary>
     public SparkPostRequester(HttpClient http, SparkPostOptions options, int? subaccountId)
     {
         _http = http;
-        _options = options;
+        _apiKey = options.ApiKey;
         _baseUrl = NormalizeBaseUrl(options.BaseUrl);
-        _subaccountId = subaccountId;
+        _subaccountId = subaccountId ?? options.SubaccountId;
     }
 
     /// <summary>
@@ -67,7 +73,7 @@ internal sealed class SparkPostRequester
     public HttpRequestMessage CreateRequest(HttpMethod method, string relativePath)
     {
         var request = new HttpRequestMessage(method, new Uri(_baseUrl, relativePath));
-        request.Headers.TryAddWithoutValidation(AuthorizationHeader, _options.ApiKey);
+        request.Headers.TryAddWithoutValidation(AuthorizationHeader, _apiKey);
 
         // A header on the request replaces DefaultRequestHeaders rather than merging with it, so
         // whatever the application identifies itself as has to be carried along by hand.
@@ -76,12 +82,11 @@ internal sealed class SparkPostRequester
             UserAgentHeader,
             applicationAgent.Count == 0 ? UserAgent : $"{applicationAgent} {UserAgent}");
 
-        var subaccount = _subaccountId ?? _options.SubaccountId;
-        if (subaccount is not null)
+        if (_subaccountId is not null)
         {
             request.Headers.TryAddWithoutValidation(
                 SubaccountHeader,
-                subaccount.Value.ToString(CultureInfo.InvariantCulture));
+                _subaccountId.Value.ToString(CultureInfo.InvariantCulture));
         }
 
         return request;

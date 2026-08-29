@@ -105,6 +105,31 @@ public sealed class ClientConfigurationTests
     }
 
     [Fact]
+    public async Task Options_are_read_once_at_construction()
+    {
+        var handler = FakeHttpMessageHandler.Returning(HttpStatusCode.OK, SuccessBody);
+        var options = new SparkPostOptions { ApiKey = "test-key" };
+
+        var client = new SparkPostClient(handler.CreateClient(), options);
+
+        // The key and the subaccount used to be re-read on every request, so this reached the
+        // wire — past the validation the constructor had already done — while BaseUrl did not.
+        options.ApiKey = "other";
+        options.SubaccountId = 42;
+        options.BaseUrl = SparkPostEndpoints.Eu;
+
+        await client.Transmissions.SendAsync(
+            Transmission.Create().From("a@example.com").To("b@example.com").Text("hi").Build(),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var request = handler.LastRequest!;
+
+        Assert.Equal("test-key", request.Headers.GetValues("Authorization").Single());
+        Assert.False(request.Headers.Contains("X-MSYS-SUBACCOUNT"));
+        Assert.Equal("api.sparkpost.com", request.RequestUri!.Host);
+    }
+
+    [Fact]
     public void Options_bind_from_a_configuration_section()
     {
         var configuration = new ConfigurationBuilder()

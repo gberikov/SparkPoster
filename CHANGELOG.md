@@ -28,6 +28,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
   to a configured check (the flag was silently ignored). Configure exactly one.
 - `AddSparkPost(IConfiguration)` binds through the configuration-binding source generator and is
   trim- and AOT-safe; the `RequiresUnreferencedCode`/`RequiresDynamicCode` annotations are gone.
+- `SparkPostClient` reads its `SparkPostOptions` once, at construction; changing the options object
+  afterwards no longer affects an existing client (previously the key and subaccount were re-read on
+  every request while the base address was not).
 
 ### Fixed
 

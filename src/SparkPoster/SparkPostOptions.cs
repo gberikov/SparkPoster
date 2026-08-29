@@ -1,6 +1,9 @@
 namespace SparkPoster;
 
-/// <summary>Configuration for the SparkPost client.</summary>
+/// <summary>
+/// Configuration for the SparkPost client. The values are read once, when the client is
+/// constructed; changing them afterwards does not affect an existing client.
+/// </summary>
 public sealed class SparkPostOptions
 {
     /// <summary>
