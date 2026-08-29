@@ -166,6 +166,39 @@ public sealed class WebhookEndpointTests
         Assert.Throws<InvalidOperationException>(() => MapWith(options));
     }
 
+    [Theory]
+    [InlineData("SecretHeaderName")]
+    [InlineData("SecretHeaderValue")]
+    [InlineData("BasicAuthUsername")]
+    [InlineData("BasicAuthPassword")]
+    public void A_whitespace_only_member_of_a_pair_refuses_to_start(string blank)
+    {
+        // Whitespace passed the pair check and then matched nothing: the endpoint started and 401ed every call.
+        var options = new SparkPostWebhookOptions();
+
+        switch (blank)
+        {
+            case "SecretHeaderName":
+                options.SecretHeaderName = " ";
+                options.SecretHeaderValue = "s3cret";
+                break;
+            case "SecretHeaderValue":
+                options.SecretHeaderName = "X-Secret";
+                options.SecretHeaderValue = " ";
+                break;
+            case "BasicAuthUsername":
+                options.BasicAuthUsername = " ";
+                options.BasicAuthPassword = "p@ss";
+                break;
+            default:
+                options.BasicAuthUsername = "hook";
+                options.BasicAuthPassword = " ";
+                break;
+        }
+
+        Assert.Throws<InvalidOperationException>(() => MapWith(options));
+    }
+
     [Fact]
     public void Both_checks_at_once_refuse_to_start()
     {

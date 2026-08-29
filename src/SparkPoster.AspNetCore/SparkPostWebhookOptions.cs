@@ -55,13 +55,13 @@ public sealed class SparkPostWebhookOptions
     /// </summary>
     internal void Validate()
     {
-        if (HasSecretHeader && (string.IsNullOrEmpty(SecretHeaderName) || string.IsNullOrEmpty(SecretHeaderValue)))
+        if (HasSecretHeader && (string.IsNullOrWhiteSpace(SecretHeaderName) || string.IsNullOrWhiteSpace(SecretHeaderValue)))
         {
             throw new InvalidOperationException(
                 "SparkPostWebhookOptions: SecretHeaderName and SecretHeaderValue must both be set.");
         }
 
-        if (HasBasicAuth && (string.IsNullOrEmpty(BasicAuthUsername) || string.IsNullOrEmpty(BasicAuthPassword)))
+        if (HasBasicAuth && (string.IsNullOrWhiteSpace(BasicAuthUsername) || string.IsNullOrWhiteSpace(BasicAuthPassword)))
         {
             throw new InvalidOperationException(
                 "SparkPostWebhookOptions: BasicAuthUsername and BasicAuthPassword must both be set.");

@@ -9,10 +9,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 ### Security
 
 - `MapSparkPostWebhook` no longer accepts calls unchecked. The options argument is now required,
-  a half-filled pair (a header name without its value, a user name without its password) throws
-  at startup instead of silently disabling the check, and an endpoint that really has no check
-  has to say so through `AllowAnonymous`. **Breaking:** `MapSparkPostWebhook(pattern, handler)`
-  no longer compiles.
+  a half-filled or whitespace-only pair (a header name without its value, a user name without its
+  password, either of them blank) throws at startup instead of silently disabling the check, and an
+  endpoint that really has no check has to say so through `AllowAnonymous`. **Breaking:**
+  `MapSparkPostWebhook(pattern, handler)` no longer compiles.
 - `WebhookAuthCredentials`, `WebhookAuthRequestDetails` and `Attachment` mask their contents in
   `ToString()`. The compiler-generated record `ToString()` used to print the Basic auth password,
   the OAuth access token, the `client_secret` inside the token request body, and the whole

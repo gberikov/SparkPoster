@@ -2,6 +2,7 @@ using System.Net;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace SparkPoster.Tests;
 
@@ -146,6 +147,11 @@ public sealed class ClientConfigurationTests
 
         using var provider = services.BuildServiceProvider();
 
+        // The only runtime proof that the generated binder handles Uri and int?, not just string.
+        var options = provider.GetRequiredService<IOptions<SparkPostOptions>>().Value;
+
         Assert.NotNull(provider.GetRequiredService<ISparkPostClient>());
+        Assert.Equal(SparkPostEndpoints.Eu, options.BaseUrl);
+        Assert.Equal(42, options.SubaccountId);
     }
 }
