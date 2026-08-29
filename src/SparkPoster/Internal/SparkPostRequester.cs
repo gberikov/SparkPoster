@@ -41,12 +41,8 @@ internal sealed class SparkPostRequester
     /// path is resolved against it: an enterprise endpoint typed as <c>https://host/api/v1</c>
     /// would send every request to <c>https://host/api/</c>.
     /// </summary>
-    private static Uri NormalizeBaseUrl(Uri baseUrl)
-    {
-        ArgumentNullException.ThrowIfNull(baseUrl);
-
-        return baseUrl.AbsoluteUri.EndsWith('/') ? baseUrl : new Uri(baseUrl.AbsoluteUri + "/");
-    }
+    private static Uri NormalizeBaseUrl(Uri baseUrl) =>
+        baseUrl.AbsoluteUri.EndsWith('/') ? baseUrl : new Uri(baseUrl.AbsoluteUri + "/");
 
     private static string BuildUserAgent()
     {

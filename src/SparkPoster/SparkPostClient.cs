@@ -62,7 +62,8 @@ public sealed class SparkPostClient : ISparkPostClient
     /// <paramref name="httpClient"/> or <paramref name="options"/> is <c>null</c>.
     /// </exception>
     /// <exception cref="ArgumentException">
-    /// <see cref="SparkPostOptions.ApiKey"/> is empty or contains a line break.
+    /// <see cref="SparkPostOptions.ApiKey"/> is empty or contains a line break, or
+    /// <see cref="SparkPostOptions.BaseUrl"/> is not an absolute URI.
     /// </exception>
     public SparkPostClient(HttpClient httpClient, SparkPostOptions options)
         : this(httpClient, options, subaccountId: null)
@@ -82,7 +83,8 @@ public sealed class SparkPostClient : ISparkPostClient
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
     /// <exception cref="ArgumentException">
-    /// <see cref="SparkPostOptions.ApiKey"/> is empty or contains a line break.
+    /// <see cref="SparkPostOptions.ApiKey"/> is empty or contains a line break, or
+    /// <see cref="SparkPostOptions.BaseUrl"/> is not an absolute URI.
     /// </exception>
     public SparkPostClient(SparkPostOptions options)
         : this(SharedHttpClient, options, subaccountId: null)
@@ -93,7 +95,7 @@ public sealed class SparkPostClient : ISparkPostClient
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
-        ValidateApiKey(options);
+        ValidateOptions(options);
 
         _httpClient = httpClient;
         _options = options;
@@ -134,8 +136,10 @@ public sealed class SparkPostClient : ISparkPostClient
     /// carried an empty Authorization header — the two look nothing alike in a log.
     /// The line-break check is defence in depth: the key goes onto the request through
     /// <c>TryAddWithoutValidation</c>, which by design validates nothing.
+    /// The base address is checked here for the same reason: a relative URI survives until the
+    /// first request and then fails with an <see cref="InvalidOperationException"/> naming no option.
     /// </summary>
-    private static void ValidateApiKey(SparkPostOptions options)
+    private static void ValidateOptions(SparkPostOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {
@@ -149,6 +153,13 @@ public sealed class SparkPostClient : ISparkPostClient
             throw new ArgumentException(
                 "SparkPostOptions.ApiKey contains a line break. It was most likely read from a file "
                 + "together with its trailing newline.",
+                nameof(options));
+        }
+
+        if (options.BaseUrl is null || !options.BaseUrl.IsAbsoluteUri)
+        {
+            throw new ArgumentException(
+                "SparkPostOptions.BaseUrl must be an absolute URI, for example https://api.sparkpost.com/api/v1/.",
                 nameof(options));
         }
     }

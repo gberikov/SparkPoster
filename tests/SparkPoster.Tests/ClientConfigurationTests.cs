@@ -16,10 +16,8 @@ public sealed class ClientConfigurationTests
     {
         // Otherwise the request goes out with an empty Authorization header and comes back as
         // SparkPost's 401, which says nothing about the real cause.
-        using var http = new HttpClient();
-
         var exception = Assert.Throws<ArgumentException>(
-            () => new SparkPostClient(http, new SparkPostOptions { ApiKey = apiKey }));
+            () => new SparkPostClient(new SparkPostOptions { ApiKey = apiKey }));
 
         Assert.Equal("options", exception.ParamName);
     }
@@ -28,12 +26,23 @@ public sealed class ClientConfigurationTests
     public void An_api_key_with_a_line_break_is_rejected()
     {
         // The usual cause: the key was read from a file together with its trailing newline.
-        using var http = new HttpClient();
-
         var exception = Assert.Throws<ArgumentException>(
-            () => new SparkPostClient(http, new SparkPostOptions { ApiKey = "abc123\n" }));
+            () => new SparkPostClient(new SparkPostOptions { ApiKey = "abc123\n" }));
 
         Assert.DoesNotContain("abc123", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Relative_base_url_is_rejected()
+    {
+        // "SparkPost:BaseUrl": "api/v1" in appsettings would otherwise reach the first request
+        // and fail there with InvalidOperationException, which names no option.
+        var options = new SparkPostOptions { ApiKey = "key", BaseUrl = new Uri("api/v1", UriKind.Relative) };
+
+        var exception = Assert.Throws<ArgumentException>(() => new SparkPostClient(options));
+
+        Assert.Equal("options", exception.ParamName);
+        Assert.Contains("BaseUrl", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

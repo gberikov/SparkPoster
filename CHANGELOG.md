@@ -53,6 +53,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `PreviewAsync` accepts substitution data that is part of another `JsonNode` tree instead of
   throwing `InvalidOperationException`.
 - `total_count` in event and suppression-list pages is read when SparkPost returns it as a string.
+- `SparkPostClient` rejects a relative `BaseUrl` at construction with a message naming the option,
+  instead of failing on the first request with `InvalidOperationException: This operation is not
+  supported for a relative URI`.
 
 ### Added
 
