@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using SparkPoster;
@@ -44,16 +43,9 @@ public static class SparkPostServiceCollectionExtensions
     /// The HTTP client builder — attach retries and timeouts to it, for example
     /// <c>.AddStandardResilienceHandler()</c> from <c>Microsoft.Extensions.Http.Resilience</c>.
     /// </returns>
-    /// <remarks>
-    /// Binding walks the options type with reflection, so in trimmed and AOT builds use the
-    /// <see cref="Action{T}"/> overload — or let the configuration binder source generator,
-    /// which is on by default in such builds, intercept this call.
-    /// </remarks>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="services"/> or <paramref name="configuration"/> is <c>null</c>.
     /// </exception>
-    [RequiresUnreferencedCode("Binding SparkPostOptions from configuration uses reflection. Use the Action<SparkPostOptions> overload instead.")]
-    [RequiresDynamicCode("Binding SparkPostOptions from configuration uses reflection. Use the Action<SparkPostOptions> overload instead.")]
     public static IHttpClientBuilder AddSparkPost(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);

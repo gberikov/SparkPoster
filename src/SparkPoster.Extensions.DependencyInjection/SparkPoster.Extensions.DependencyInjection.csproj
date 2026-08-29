@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <Description>IServiceCollection registration for SparkPoster on top of IHttpClientFactory.</Description>
+
+    <!-- The generator ships transitively with Microsoft.Extensions.Options.ConfigurationExtensions
+         and intercepts the Configure<SparkPostOptions>(configuration) call below, so binding needs
+         no reflection. It has to be on here: interceptors rewrite call sites inside the compilation
+         that runs the generator, and that call lives in this assembly, out of a consumer's reach. -->
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
 
   <ItemGroup>

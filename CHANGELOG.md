@@ -26,6 +26,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `MapSparkPostWebhook` refuses options that configure both the secret header and Basic
   authentication (only the header was ever checked), and options that set `AllowAnonymous` next
   to a configured check (the flag was silently ignored). Configure exactly one.
+- `AddSparkPost(IConfiguration)` binds through the configuration-binding source generator and is
+  trim- and AOT-safe; the `RequiresUnreferencedCode`/`RequiresDynamicCode` annotations are gone.
 
 ### Fixed
 
