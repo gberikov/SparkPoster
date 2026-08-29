@@ -37,18 +37,24 @@ commit messages, and technical terms as-is.
 
 ### Защита master и тегов
 
-GitHub-side protection (rulesets и классический branch protection) для **приватных**
-репозиториев требует GitHub Pro — API отвечает `403 Upgrade to GitHub Pro or make this
-repository public`. Поэтому защита локальная, хуком `.githooks/pre-push`: он запрещает
-удаление и не-fast-forward пуш для `master` и всех тегов.
+Репозиторий публичный, поэтому защита живёт на стороне GitHub — два активных ruleset'а:
+
+| Ruleset | Цель | Запрещает |
+|---------|------|-----------|
+| `master` | `refs/heads/master` | удаление, не-fast-forward пуш |
+| `version tags` | `refs/tags/**` | удаление, перезапись, не-fast-forward |
+
+Создание тега разрешено, изменение существующего — нет: выпущенная версия неизменяема,
+как и пакет на nuget.org. Bypass-акторов у рулсетов нет, они действуют и на владельца.
+Если понадобится force-push в `master`, ruleset придётся явно выключить в UI — это
+заметное действие, в отличие от тихого `--no-verify`.
+
+Локальный хук `.githooks/pre-push` оставлен вторым рубежом: он ловит ту же ошибку
+до сетевого запроса.
 
 ```bash
 git config core.hooksPath .githooks   # выполнить заново после каждого клонирования
 ```
-
-Осознанный обход — `git push --no-verify`. Когда репозиторий станет публичным
-(решение №1: OSS позже), защиту надо перенести на сторону GitHub — там она бесплатна
-и, в отличие от хука, действует на всех.
 
 ## Коммиты
 
