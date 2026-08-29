@@ -480,3 +480,26 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# ========================================
+# SparkPoster
+# ========================================
+
+# Claude Code: локальные настройки и рабочие файлы агента
+.claude/settings.local.json
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.superpowers/
+
+# Локальные секреты. Интеграционные тесты читают ключ из переменной окружения
+# SPARKPOST_API_KEY; .env уже игнорируется выше, здесь — его локальные варианты
+# и файлы настроек, куда ключ утекает чаще всего.
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.local.json
+secrets.json
+
+# Покрытие: стоковые правила ловят coverage*.xml, но не каталог и не lcov
+coverage/
+lcov.info
