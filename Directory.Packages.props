@@ -1,0 +1,25 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Versioning from git tags. -->
+    <PackageVersion Include="MinVer" Version="7.0.0" />
+
+    <!-- The DI package: IHttpClientFactory. 8.0.x rather than 10.x because the library
+         targets net8.0 and there is no reason to drag a newer Microsoft.Extensions line
+         into its dependency graph. -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
+
+    <!-- Tests. FluentAssertions is deliberately absent: since version 8 it is paid for
+         commercial use, and plain Assert is enough. -->
+    <PackageVersion Include="xunit.v3" Version="4.0.0" />
+
+    <!-- Webhook endpoint coverage: the 200/401/500 statuses and the secret comparison
+         cannot be verified any other way. -->
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.11" />
+  </ItemGroup>
+
+</Project>

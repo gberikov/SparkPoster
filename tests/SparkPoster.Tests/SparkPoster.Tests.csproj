@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SparkPoster\SparkPoster.csproj" />
+    <ProjectReference Include="..\..\src\SparkPoster.Extensions.DependencyInjection\SparkPoster.Extensions.DependencyInjection.csproj" />
+    <ProjectReference Include="..\..\src\SparkPoster.AspNetCore\SparkPoster.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>

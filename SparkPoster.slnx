@@ -1,5 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/SparkPoster/SparkPoster.csproj" />
+    <Project Path="src/SparkPoster.Extensions.DependencyInjection/SparkPoster.Extensions.DependencyInjection.csproj" />
+    <Project Path="src/SparkPoster.AspNetCore/SparkPoster.AspNetCore.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SparkPoster.Tests/SparkPoster.Tests.csproj" />
   </Folder>
 </Solution>

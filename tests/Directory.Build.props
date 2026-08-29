@@ -1,0 +1,23 @@
+<Project>
+
+  <!-- MSBuild will NOT pick the root Directory.Build.props up on its own: it stops at the
+       first one it finds walking up the tree. Hence the explicit import. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- Tests are not shipped, so they get their own TFM: net10.0 provides
+         JsonNode.DeepEquals, which is how expected request bodies are compared.
+         The library itself stays on net8.0. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- xUnit v3 builds a test project into an executable. -->
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

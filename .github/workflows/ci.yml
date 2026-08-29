@@ -1,0 +1,69 @@
+# Build, test and — on a version tag — publish to nuget.org.
+#
+# One file rather than two: splitting release into its own workflow would duplicate the
+# checkout and SDK setup for the sake of a condition that fits on one line.
+name: ci
+
+on:
+  push:
+    branches: [master, develop]
+    # Version tags carry no prefix: 0.1.0, not v0.1.0 (the MinVer default, and what
+    # gitflow.prefix.versiontag is set to in this repository). These are glob patterns,
+    # not regular expressions.
+    tags: ['[0-9]*.[0-9]*.[0-9]*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # MinVer derives the version by walking back to the nearest tag. Without the
+          # full history it sees none and stamps every package 0.0.0-alpha.0.N.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # No API key is needed: every test runs against a fake HTTP handler. Real sending
+      # stays a manual smoke test — the sandbox domain allows five messages for the
+      # lifetime of the account, so it can never run in CI.
+      - run: dotnet test --solution SparkPoster.slnx -c Release
+
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets the job ask GitHub for the OIDC token that nuget.org exchanges for a
+      # one-hour API key. No long-lived key is stored anywhere.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet pack SparkPoster.slnx -c Release -o artifacts
+
+      # Requested right before the push: the key it returns lives one hour.
+      - uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # The matching .snupkg next to each .nupkg is picked up and pushed automatically.
+      - run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

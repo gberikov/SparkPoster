@@ -1,0 +1,32 @@
+#!/bin/sh
+# Защита master и тегов от удаления и перезаписи.
+#
+# GitHub-side protection (rulesets / branch protection) для приватных репозиториев
+# требует GitHub Pro, поэтому защита живёт здесь. Она локальная: работает на машине,
+# где выполнен `git config core.hooksPath .githooks`. При клонировании репозитория
+# эту команду нужно выполнить заново — git не переносит конфиг.
+#
+# Обойти осознанно: git push --no-verify
+
+zero=0000000000000000000000000000000000000000
+status=0
+
+while read -r _local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/heads/master|refs/tags/*) ;;
+        *) continue ;;
+    esac
+
+    if [ "$local_sha" = "$zero" ]; then
+        echo "pre-push: удаление $remote_ref запрещено." >&2
+        status=1
+        continue
+    fi
+
+    if [ "$remote_sha" != "$zero" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+        echo "pre-push: не-fast-forward пуш в $remote_ref запрещён (перезапись истории)." >&2
+        status=1
+    fi
+done
+
+exit $status

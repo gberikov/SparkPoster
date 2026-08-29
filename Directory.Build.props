@@ -1,0 +1,23 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- A single TFM on purpose: net8.0 is consumable from net8/9/10 without a single #if.
+         Multi-targeting waits for a real net10-only API or a measured performance gap. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+  </PropertyGroup>
+
+  <!-- Package version comes from the git tag. Tags carry no prefix: 0.1.0 rather than v0.1.0,
+       which is both the MinVer default and the gitflow.prefix.versiontag convention here. -->
+  <ItemGroup>
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>
