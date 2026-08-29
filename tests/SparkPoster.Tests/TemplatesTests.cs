@@ -75,6 +75,31 @@ public sealed class TemplatesTests
     }
 
     [Fact]
+    public async Task List_puts_both_filters_in_the_query()
+    {
+        var (client, handler) = CreateClient("""{"results":[]}""");
+
+        await client.Templates.ListAsync(
+            draft: false,
+            sharedWithSubaccounts: true,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://api.sparkpost.com/api/v1/templates?draft=false&shared_with_subaccounts=true",
+            handler.LastRequest!.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task List_without_filters_sends_no_query()
+    {
+        var (client, handler) = CreateClient("""{"results":[]}""");
+
+        await client.Templates.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://api.sparkpost.com/api/v1/templates", handler.LastRequest!.RequestUri!.ToString());
+    }
+
+    [Fact]
     public async Task Update_targets_the_published_version_when_asked()
     {
         var (client, handler) = CreateClient("""{"results":{"id":"welcome"}}""");
@@ -89,6 +114,21 @@ public sealed class TemplatesTests
         Assert.Equal(
             "https://api.sparkpost.com/api/v1/templates/welcome?update_published=true",
             handler.LastRequest.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task Update_sends_no_query_when_the_draft_stays_the_target()
+    {
+        var (client, handler) = CreateClient("""{"results":{"id":"welcome"}}""");
+
+        await client.Templates.UpdateAsync(
+            "welcome",
+            new TemplateRequest { Name = "Renamed" },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "https://api.sparkpost.com/api/v1/templates/welcome",
+            handler.LastRequest!.RequestUri!.ToString());
     }
 
     [Fact]

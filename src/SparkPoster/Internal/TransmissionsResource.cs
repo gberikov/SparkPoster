@@ -46,9 +46,10 @@ internal sealed class TransmissionsResource : ITransmissions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(campaignId);
 
-        using var request = _requester.CreateRequest(
-            HttpMethod.Delete,
-            $"transmissions?campaign_id={Uri.EscapeDataString(campaignId)}");
+        var query = new QueryBuilder();
+        query.Add("campaign_id", campaignId);
+
+        using var request = _requester.CreateRequest(HttpMethod.Delete, $"transmissions{query}");
 
         using var response = await _requester.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
