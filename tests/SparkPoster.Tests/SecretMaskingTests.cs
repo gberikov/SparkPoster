@@ -34,7 +34,7 @@ public sealed class SecretMaskingTests
         {
             Id = "1",
             Name = "Delivery events",
-            AuthCredentials = new WebhookAuthCredentials { Username = "hook", Password = "p@ssw0rd" },
+            AuthCredentials = new WebhookAuthCredentials { Username = "hook", Password = "p@ssw0rd" }, // test fixture, not a credential
         };
 
         Assert.DoesNotContain("p@ssw0rd", webhook.ToString(), StringComparison.Ordinal);

@@ -89,7 +89,7 @@ public sealed class WebhookEndpointTests
     [Fact]
     public async Task Basic_auth_credentials_are_verified()
     {
-        var options = new SparkPostWebhookOptions { BasicAuthUsername = "hook", BasicAuthPassword = "p@ss" };
+        var options = new SparkPostWebhookOptions { BasicAuthUsername = "hook", BasicAuthPassword = "p@ss" }; // test fixture, not a credential
         using var host = await StartHostAsync((_, _) => Task.CompletedTask, options);
         using var client = host.GetTestClient();
 
