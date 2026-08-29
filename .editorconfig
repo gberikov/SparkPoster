@@ -1,0 +1,36 @@
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{cs,csx}]
+end_of_line = crlf
+indent_size = 4
+
+[*.{csproj,props,targets,config,nuspec,slnx}]
+end_of_line = crlf
+indent_size = 2
+
+[*.{json,yml,yaml,md}]
+end_of_line = lf
+indent_size = 2
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_using_directive_placement = outside_namespace:suggestion
+dotnet_sort_system_directives_first = true
+csharp_prefer_braces = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+
+# Библиотечный код: забытый ConfigureAwait(false) должен ломать сборку у нас,
+# а не приложение потребителя. В тестах это правило не нужно и только мешает.
+[src/**/*.cs]
+dotnet_diagnostic.CA2007.severity = error
