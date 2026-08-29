@@ -4,9 +4,17 @@ namespace SparkPoster.AspNetCore;
 /// How an incoming webhook call is proven genuine.
 /// </summary>
 /// <remarks>
+/// <para>
 /// SparkPost webhooks carry no signature, so authenticity rests entirely on what you
 /// configured when creating the webhook. Set either Basic authentication or a secret header,
 /// and mirror the same values in the <see cref="WebhookRequest"/>.
+/// </para>
+/// <para>
+/// Configure exactly one of: the secret header, Basic authentication, or
+/// <see cref="AllowAnonymous"/>. The other combinations are refused at startup, because each
+/// of them used to do less than it read as: with both pairs set only the header was checked,
+/// and <see cref="AllowAnonymous"/> next to a configured check was ignored.
+/// </para>
 /// </remarks>
 public sealed class SparkPostWebhookOptions
 {
@@ -57,6 +65,20 @@ public sealed class SparkPostWebhookOptions
         {
             throw new InvalidOperationException(
                 "SparkPostWebhookOptions: BasicAuthUsername and BasicAuthPassword must both be set.");
+        }
+
+        if (HasSecretHeader && HasBasicAuth)
+        {
+            throw new InvalidOperationException(
+                "SparkPostWebhookOptions: configure either SecretHeaderName/SecretHeaderValue "
+                + "or BasicAuthUsername/BasicAuthPassword, not both.");
+        }
+
+        if (AllowAnonymous && (HasSecretHeader || HasBasicAuth))
+        {
+            throw new InvalidOperationException(
+                "SparkPostWebhookOptions: AllowAnonymous cannot be combined with a configured check. "
+                + "Remove one of them.");
         }
 
         if (!HasSecretHeader && !HasBasicAuth && !AllowAnonymous)

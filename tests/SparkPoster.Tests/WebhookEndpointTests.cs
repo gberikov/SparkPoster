@@ -167,6 +167,35 @@ public sealed class WebhookEndpointTests
     }
 
     [Fact]
+    public void Both_checks_at_once_refuse_to_start()
+    {
+        // Only the header was ever checked, and nothing said so.
+        var options = new SparkPostWebhookOptions
+        {
+            SecretHeaderName = "X-Secret",
+            SecretHeaderValue = "s3cret",
+            BasicAuthUsername = "hook",
+            BasicAuthPassword = "p@ss",
+        };
+
+        Assert.Throws<InvalidOperationException>(() => MapWith(options));
+    }
+
+    [Fact]
+    public void AllowAnonymous_next_to_a_configured_check_refuses_to_start()
+    {
+        // The flag used to be ignored, which reads as "anonymous" and behaves as "checked".
+        var options = new SparkPostWebhookOptions
+        {
+            AllowAnonymous = true,
+            SecretHeaderName = "X-Secret",
+            SecretHeaderValue = "s3cret",
+        };
+
+        Assert.Throws<InvalidOperationException>(() => MapWith(options));
+    }
+
+    [Fact]
     public void Options_are_required()
     {
         Assert.Throws<ArgumentNullException>(() => MapWith(null!));

@@ -21,6 +21,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `SparkPostClient` rejects an empty API key, and one carrying a line break, at construction
   instead of sending an empty `Authorization` header and reporting SparkPost's 401.
 
+### Changed
+
+- `MapSparkPostWebhook` refuses options that configure both the secret header and Basic
+  authentication (only the header was ever checked), and options that set `AllowAnonymous` next
+  to a configured check (the flag was silently ignored). Configure exactly one.
+
 ### Fixed
 
 - A base address without a trailing slash no longer loses its last segment. An enterprise

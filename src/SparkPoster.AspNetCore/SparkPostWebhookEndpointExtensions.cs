@@ -47,8 +47,10 @@ public static class SparkPostWebhookEndpointExtensions
     /// is <c>null</c>.
     /// </exception>
     /// <exception cref="InvalidOperationException">
-    /// <paramref name="options"/> configures no check, or configures one only half way — a
-    /// header name without its value, a user name without its password.
+    /// <paramref name="options"/> configures no check, configures one only half way — a
+    /// header name without its value, a user name without its password — or configures more
+    /// than one: both the secret header and Basic authentication, or a check next to
+    /// <see cref="SparkPostWebhookOptions.AllowAnonymous"/>.
     /// </exception>
     public static IEndpointConventionBuilder MapSparkPostWebhook(
         this IEndpointRouteBuilder endpoints,
@@ -116,9 +118,7 @@ public static class SparkPostWebhookEndpointExtensions
                 && FixedTimeEquals(actual["Basic ".Length..], expected);
         }
 
-        // Validate() has already established that reaching this line means a deliberate
-        // AllowAnonymous rather than a check that quietly failed to configure itself.
-        return true;
+        return options.AllowAnonymous;
     }
 
     /// <summary>
