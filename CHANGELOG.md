@@ -36,6 +36,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
   (`YYYY-MM-DDTHH:mm:ssZ`, e.g. `2026-08-01T06:00:00+00:00`) and no longer appends a `timezone`
   parameter the endpoint does not have. Previously the dates went out in the Events-API shape,
   without seconds or offset.
+- `start_time` is sent with whole-second precision (`YYYY-MM-DDTHH:MM:SS+-HH:MM`, as SparkPost
+  documents it). A `DateTimeOffset` with fractional seconds — `DateTimeOffset.UtcNow.AddHours(2)`,
+  say — used to go out with seven fractional digits.
 
 ### Added
 

@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using SparkPoster.Internal;
 
 namespace SparkPoster;
 
@@ -210,6 +212,8 @@ public sealed record TransmissionOptions
 
     /// <summary>
     /// When to send a scheduled message. SparkPost rejects times more than three days ahead.
+    /// Sent with whole-second precision; fractional seconds are dropped.
     /// </summary>
+    [JsonConverter(typeof(StartTimeJsonConverter))]
     public DateTimeOffset? StartTime { get; init; }
 }
