@@ -11,10 +11,10 @@
     <!-- The DI package: IHttpClientFactory. 8.0.x rather than 10.x because the library
          targets net8.0 and there is no reason to drag a newer Microsoft.Extensions line
          into its dependency graph. -->
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
 
     <!-- Binding SparkPostOptions from a configuration section. Same 8.0.x line, same reason. -->
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
 
     <!-- Tests. FluentAssertions is deliberately absent: since version 8 it is paid for
          commercial use, and plain Assert is enough. -->
