@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
 namespace SparkPoster;
@@ -17,10 +18,17 @@ public static class Transmission
 /// Построитель письма. Не потокобезопасен: один экземпляр — одно письмо в одном потоке.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Построитель ничего не отправляет: <see cref="Build"/> возвращает
 /// <see cref="TransmissionRequest"/>, который затем передаётся в
 /// <see cref="ITransmissions.SendAsync"/>. Готовый запрос можно сохранить, сериализовать
 /// или переиспользовать через <c>with</c>.
+/// </para>
+/// <para>
+/// Содержимое задаётся ровно одним способом: <see cref="Html"/>/<see cref="Text"/>,
+/// <see cref="Template"/>, <see cref="AbTest"/> или <see cref="RawRfc822"/>.
+/// Смешение способов обнаруживается в <see cref="Build"/>.
+/// </para>
 /// </remarks>
 public sealed class TransmissionBuilder
 {
@@ -30,21 +38,32 @@ public sealed class TransmissionBuilder
     /// </summary>
     private static readonly JsonSerializerOptions UserDataOptions = new()
     {
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     private readonly List<Recipient> _recipients = [];
+    private readonly List<Address> _cc = [];
+    private readonly List<Address> _bcc = [];
+    private readonly List<Attachment> _attachments = [];
+    private readonly List<Attachment> _inlineImages = [];
     private Dictionary<string, string>? _headers;
     private TransmissionOptions _options = new();
+    private ContentOverride? _override;
     private Address? _from;
     private string? _subject;
     private string? _html;
     private string? _text;
     private string? _ampHtml;
     private string? _replyTo;
+    private string? _templateId;
+    private bool? _useDraftTemplate;
+    private string? _abTestId;
+    private string? _rfc822;
+    private string? _recipientListId;
     private string? _campaignId;
     private string? _description;
     private string? _returnPath;
+    private string? _trackingDomain;
     private JsonNode? _substitutionData;
     private JsonNode? _metadata;
 
@@ -90,6 +109,47 @@ public sealed class TransmissionBuilder
         return this;
     }
 
+    /// <summary>Добавляет получателя копии.</summary>
+    /// <param name="email">Адрес получателя копии.</param>
+    /// <param name="name">Отображаемое имя.</param>
+    /// <returns>Тот же построитель.</returns>
+    /// <remarks>
+    /// В SparkPost нет отдельного поля для копий: получатель копии добавляется в общий
+    /// список с подменённым заголовком <c>To</c>, а его адрес дописывается в заголовок
+    /// <c>CC</c>. Построитель делает это за вас в <see cref="Build"/>.
+    /// </remarks>
+    public TransmissionBuilder Cc(string email, string? name = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        _cc.Add(new Address { Email = email, Name = name });
+        return this;
+    }
+
+    /// <summary>Добавляет скрытого получателя.</summary>
+    /// <param name="email">Адрес скрытого получателя.</param>
+    /// <param name="name">Отображаемое имя.</param>
+    /// <returns>Тот же построитель.</returns>
+    /// <remarks>
+    /// Скрытый получатель добавляется в общий список с подменённым заголовком <c>To</c>
+    /// и, в отличие от копии, нигде в заголовках не упоминается.
+    /// </remarks>
+    public TransmissionBuilder Bcc(string email, string? name = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        _bcc.Add(new Address { Email = email, Name = name });
+        return this;
+    }
+
+    /// <summary>Отправляет письмо по сохранённому списку получателей.</summary>
+    /// <param name="listId">Идентификатор списка.</param>
+    /// <returns>Тот же построитель.</returns>
+    public TransmissionBuilder RecipientList(string listId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(listId);
+        _recipientListId = listId;
+        return this;
+    }
+
     /// <summary>Задаёт тему письма. Поддерживает язык шаблонов.</summary>
     /// <param name="subject">Тема.</param>
     /// <returns>Тот же построитель.</returns>
@@ -130,6 +190,59 @@ public sealed class TransmissionBuilder
         return this;
     }
 
+    /// <summary>Отправляет письмо по сохранённому шаблону.</summary>
+    /// <param name="templateId">Идентификатор шаблона.</param>
+    /// <param name="useDraft">Использовать черновик вместо опубликованной версии.</param>
+    /// <returns>Тот же построитель.</returns>
+    public TransmissionBuilder Template(string templateId, bool useDraft = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(templateId);
+        _templateId = templateId;
+        _useDraftTemplate = useDraft ? true : null;
+        return this;
+    }
+
+    /// <summary>Отправляет письмо как A/B-тест.</summary>
+    /// <param name="abTestId">Идентификатор A/B-теста.</param>
+    /// <returns>Тот же построитель.</returns>
+    /// <remarks>A/B-тесты поддерживают только письма с одним получателем.</remarks>
+    public TransmissionBuilder AbTest(string abTestId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(abTestId);
+        _abTestId = abTestId;
+        return this;
+    }
+
+    /// <summary>Отправляет готовое письмо в формате RFC822.</summary>
+    /// <param name="rfc822">Содержимое письма.</param>
+    /// <returns>Тот же построитель.</returns>
+    public TransmissionBuilder RawRfc822(string rfc822)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rfc822);
+        _rfc822 = rfc822;
+        return this;
+    }
+
+    /// <summary>Добавляет вложение.</summary>
+    /// <param name="attachment">Вложение.</param>
+    /// <returns>Тот же построитель.</returns>
+    public TransmissionBuilder Attach(Attachment attachment)
+    {
+        ArgumentNullException.ThrowIfNull(attachment);
+        _attachments.Add(attachment);
+        return this;
+    }
+
+    /// <summary>Добавляет встроенное изображение.</summary>
+    /// <param name="image">Изображение; на него ссылаются из HTML через <c>cid:</c> с его именем.</param>
+    /// <returns>Тот же построитель.</returns>
+    public TransmissionBuilder InlineImage(Attachment image)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        _inlineImages.Add(image);
+        return this;
+    }
+
     /// <summary>Задаёт адрес для ответа.</summary>
     /// <param name="replyTo">Адрес для ответа.</param>
     /// <returns>Тот же построитель.</returns>
@@ -150,6 +263,16 @@ public sealed class TransmissionBuilder
         ArgumentNullException.ThrowIfNull(value);
         _headers ??= [];
         _headers[name] = value;
+        return this;
+    }
+
+    /// <summary>Переопределяет поля сохранённого шаблона.</summary>
+    /// <param name="contentOverride">Переопределяемые поля.</param>
+    /// <returns>Тот же построитель.</returns>
+    public TransmissionBuilder Override(ContentOverride contentOverride)
+    {
+        ArgumentNullException.ThrowIfNull(contentOverride);
+        _override = contentOverride;
         return this;
     }
 
@@ -180,6 +303,16 @@ public sealed class TransmissionBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(returnPath);
         _returnPath = returnPath;
+        return this;
+    }
+
+    /// <summary>Задаёт домен отслеживания для оборачивания ссылок.</summary>
+    /// <param name="trackingDomain">Подтверждённый домен отслеживания.</param>
+    /// <returns>Тот же построитель.</returns>
+    public TransmissionBuilder TrackingDomain(string trackingDomain)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(trackingDomain);
+        _trackingDomain = trackingDomain;
         return this;
     }
 
@@ -291,6 +424,15 @@ public sealed class TransmissionBuilder
         return this;
     }
 
+    /// <summary>Откладывает отправку до указанного момента.</summary>
+    /// <param name="startTime">Время отправки; не далее трёх суток вперёд.</param>
+    /// <returns>Тот же построитель.</returns>
+    public TransmissionBuilder StartTime(DateTimeOffset startTime)
+    {
+        _options = _options with { StartTime = startTime };
+        return this;
+    }
+
     /// <summary>Заменяет параметры отправки целиком.</summary>
     /// <param name="options">Параметры отправки.</param>
     /// <returns>Тот же построитель.</returns>
@@ -304,44 +446,132 @@ public sealed class TransmissionBuilder
     /// <summary>Собирает запрос.</summary>
     /// <returns>Готовый запрос на отправку.</returns>
     /// <exception cref="InvalidOperationException">
-    /// Не задан отправитель, получатели или содержимое письма.
+    /// Не заданы получатели или содержимое, либо содержимое задано двумя способами сразу.
     /// </exception>
     public TransmissionRequest Build()
     {
-        if (_from is null)
+        var recipients = BuildRecipients();
+        var content = BuildContent();
+
+        return new TransmissionRequest
         {
-            throw new InvalidOperationException("Не задан отправитель: вызовите From().");
+            Content = content,
+            Recipients = recipients,
+            SubstitutionData = _substitutionData,
+            Metadata = _metadata,
+            Options = _options == new TransmissionOptions() ? null : _options,
+            Override = _override,
+            CampaignId = _campaignId,
+            Description = _description,
+            ReturnPath = _returnPath,
+            TrackingDomain = _trackingDomain,
+        };
+    }
+
+    private static string FormatAddress(Address address) =>
+        string.IsNullOrEmpty(address.Name) ? address.Email : $"\"{address.Name}\" <{address.Email}>";
+
+    private RecipientSet BuildRecipients()
+    {
+        if (_recipientListId is not null)
+        {
+            if (_recipients.Count > 0 || _cc.Count > 0 || _bcc.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    "Получатели заданы дважды: и сохранённым списком через RecipientList(), и явно через To()/Cc()/Bcc().");
+            }
+
+            return RecipientSet.StoredList(_recipientListId);
         }
 
         if (_recipients.Count == 0)
         {
-            throw new InvalidOperationException("Не задан ни один получатель: вызовите To().");
+            throw new InvalidOperationException("Не задан ни один получатель: вызовите To() или RecipientList().");
         }
 
-        if (_html is null && _text is null && _ampHtml is null)
+        if (_cc.Count == 0 && _bcc.Count == 0)
         {
-            throw new InvalidOperationException("Не задано содержимое письма: вызовите Html(), Text() или AmpHtml().");
+            return RecipientSet.Inline([.. _recipients]);
         }
 
-        return new TransmissionRequest
+        // Копии в SparkPost — это обычные получатели с подменённым заголовком To.
+        var headerTo = string.Join(", ", _recipients.Select(recipient => FormatAddress(recipient.Address)));
+
+        var all = new List<Recipient>(_recipients.Count + _cc.Count + _bcc.Count);
+        all.AddRange(_recipients);
+        all.AddRange(_cc.Concat(_bcc).Select(address => new Recipient
         {
-            Content = new TransmissionContent
-            {
-                From = _from,
-                Subject = _subject,
-                Html = _html,
-                Text = _text,
-                AmpHtml = _ampHtml,
-                ReplyTo = _replyTo,
-                Headers = _headers,
-            },
-            Recipients = [.. _recipients],
-            SubstitutionData = _substitutionData,
-            Metadata = _metadata,
-            Options = _options == new TransmissionOptions() ? null : _options,
-            CampaignId = _campaignId,
-            Description = _description,
-            ReturnPath = _returnPath,
+            Address = address with { HeaderTo = headerTo },
+        }));
+
+        return RecipientSet.Inline(all);
+    }
+
+    private TransmissionContent BuildContent()
+    {
+        var hasInline = _html is not null || _text is not null || _ampHtml is not null;
+        var forms = new List<string>(4);
+
+        if (hasInline)
+        {
+            forms.Add("inline-содержимое");
+        }
+
+        if (_templateId is not null)
+        {
+            forms.Add("шаблон");
+        }
+
+        if (_abTestId is not null)
+        {
+            forms.Add("A/B-тест");
+        }
+
+        if (_rfc822 is not null)
+        {
+            forms.Add("RFC822");
+        }
+
+        if (forms.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Не задано содержимое письма: вызовите Html()/Text(), Template(), AbTest() или RawRfc822().");
+        }
+
+        if (forms.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Содержимое задано несколькими способами сразу ({string.Join(" и ", forms)}), а допустим только один.");
+        }
+
+        if (hasInline && _from is null)
+        {
+            throw new InvalidOperationException("Не задан отправитель: вызовите From().");
+        }
+
+        var headers = _headers;
+
+        if (_cc.Count > 0)
+        {
+            headers = headers is null ? [] : new Dictionary<string, string>(headers);
+            headers["CC"] = string.Join(", ", _cc.Select(FormatAddress));
+        }
+
+        return new TransmissionContent
+        {
+            From = _from,
+            Subject = _subject,
+            Html = _html,
+            Text = _text,
+            AmpHtml = _ampHtml,
+            ReplyTo = _replyTo,
+            Headers = headers,
+            Attachments = _attachments.Count > 0 ? [.. _attachments] : null,
+            InlineImages = _inlineImages.Count > 0 ? [.. _inlineImages] : null,
+            TemplateId = _templateId,
+            UseDraftTemplate = _useDraftTemplate,
+            AbTestId = _abTestId,
+            EmailRfc822 = _rfc822,
         };
     }
 }

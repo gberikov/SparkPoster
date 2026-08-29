@@ -62,11 +62,11 @@ public sealed class TransmissionBuilderTests
 
         var second = template with
         {
-            Recipients = [new Recipient { Address = new Address { Email = "second@example.com" } }],
+            Recipients = RecipientSet.Inline([new Recipient { Address = new Address { Email = "second@example.com" } }]),
         };
 
-        Assert.Equal("first@example.com", template.Recipients.Single().Address.Email);
-        Assert.Equal("second@example.com", second.Recipients.Single().Address.Email);
+        Assert.Equal("first@example.com", template.Recipients.Items!.Single().Address.Email);
+        Assert.Equal("second@example.com", second.Recipients.Items!.Single().Address.Email);
         Assert.Same(template.Content, second.Content);
     }
 
@@ -84,7 +84,7 @@ public sealed class TransmissionBuilderTests
             .Html("<p>hi</p>")
             .Build();
 
-        Assert.Equal("vip", request.Recipients.Single().Tags!.Single());
+        Assert.Equal("vip", request.Recipients.Items!.Single().Tags!.Single());
         Assert.Equal("spring", request.Content.Headers!["X-Campaign"]);
     }
 }

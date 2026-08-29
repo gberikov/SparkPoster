@@ -20,4 +20,16 @@ public interface ITransmissions
         TransmissionRequest transmission,
         string? idempotencyKey = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Отменяет отложенные письма кампании.</summary>
+    /// <param name="campaignId">Идентификатор кампании.</param>
+    /// <param name="cancellationToken">Токен отмены.</param>
+    /// <returns>Задача, завершающаяся после принятия запроса.</returns>
+    /// <remarks>
+    /// SparkPost отвечает сразу, а удаление идёт в фоне: по каждому отменённому письму
+    /// придёт событие <c>bounce</c> с причиной «554 5.7.1 [internal] Campaign cancelled».
+    /// Чтобы отменить письма субаккаунта, запрос надо делать от его имени —
+    /// через <see cref="ISparkPostClient.ForSubaccount"/> или ключом субаккаунта.
+    /// </remarks>
+    Task DeleteByCampaignAsync(string campaignId, CancellationToken cancellationToken = default);
 }
