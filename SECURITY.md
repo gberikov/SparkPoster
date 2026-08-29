@@ -13,6 +13,15 @@ problem. Do not include a real API key or real recipient addresses.
 
 The library is pre-1.0: only the latest released version gets fixes.
 
+## Known issues in released versions
+
+- **0.1.0** — `MapSparkPostWebhook(pattern, handler)` called without options accepted every call
+  unchecked, so anyone who learned the endpoint's URL could feed it forged bounce and unsubscribe
+  events; and the record `ToString()` of `Webhook`, `WebhookAuthCredentials` and
+  `WebhookAuthRequestDetails` printed the Basic auth password, the OAuth access token and the
+  `client_secret`, one `logger.LogInformation("{Webhook}", webhook)` away from the log.
+  Fixed in 0.2.0 — update, and rotate any webhook credential that may have reached a log.
+
 ## What this library expects of you
 
 Three things it cannot do on your behalf:
