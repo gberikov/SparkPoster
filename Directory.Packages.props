@@ -13,6 +13,9 @@
          into its dependency graph. -->
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
 
+    <!-- Binding SparkPostOptions from a configuration section. Same 8.0.x line, same reason. -->
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+
     <!-- Tests. FluentAssertions is deliberately absent: since version 8 it is paid for
          commercial use, and plain Assert is enough. -->
     <PackageVersion Include="xunit.v3" Version="4.0.0" />

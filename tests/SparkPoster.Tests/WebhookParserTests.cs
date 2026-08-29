@@ -44,6 +44,84 @@ public sealed class WebhookParserTests
     }
 
     [Fact]
+    public void Unparsable_timestamp_does_not_break_the_batch()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"message_event":{"type":"bounce","timestamp":"yesterday"}}}]""");
+
+        var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
+
+        Assert.Equal(SparkPostEventTypes.Bounce, unknown.Type);
+        Assert.Equal("message_event", unknown.Category);
+        Assert.NotNull(unknown.Raw);
+        Assert.Contains("sparkposter_parse_error", unknown.Extra!);
+        Assert.Contains(
+            "not Unix seconds within the range of a date nor ISO 8601",
+            unknown.Extra!["sparkposter_parse_error"].GetString()!,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Unparsable_timestamp_leaves_the_other_events_intact()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """
+            [
+              {"msys":{"message_event":{"type":"bounce","timestamp":"yesterday"}}},
+              {"msys":{"message_event":{"type":"delivery","timestamp":"1460989507"}}}
+            ]
+            """);
+
+        Assert.Collection(
+            events,
+            e => Assert.IsType<UnknownSparkPostEvent>(e),
+            e =>
+            {
+                var delivery = Assert.IsType<MessageEvent>(e);
+
+                Assert.Equal(SparkPostEventTypes.Delivery, delivery.Type);
+                Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1460989507), delivery.Timestamp);
+            });
+    }
+
+    [Fact]
+    public void Out_of_range_unix_timestamp_does_not_break_the_batch()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"message_event":{"type":"bounce","timestamp":"99999999999999"}}}]""");
+
+        var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
+
+        Assert.Contains("sparkposter_parse_error", unknown.Extra!);
+        Assert.Contains(
+            "not Unix seconds within the range of a date nor ISO 8601",
+            unknown.Extra!["sparkposter_parse_error"].GetString()!,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Numeric_timestamp_is_parsed_from_unix_seconds()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"message_event":{"type":"bounce","timestamp":1460989507}}}]""");
+
+        var bounce = Assert.IsType<MessageEvent>(events.Single());
+
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1460989507), bounce.Timestamp);
+    }
+
+    [Fact]
+    public void Fractional_numeric_timestamp_does_not_break_the_batch()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"message_event":{"type":"bounce","timestamp":1460989507.5}}}]""");
+
+        var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
+
+        Assert.Contains("sparkposter_parse_error", unknown.Extra!);
+    }
+
+    [Fact]
     public void Click_is_parsed_into_TrackEvent()
     {
         var events = SparkPostWebhookParser.Parse(

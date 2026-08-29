@@ -26,6 +26,18 @@ public sealed class EventsTests
     }
 
     [Fact]
+    public async Task Total_count_is_read_when_it_arrives_as_a_string()
+    {
+        // SparkPost returns the same numeric fields quoted in places; the context is configured
+        // for that, and reading total_count has to go through it like everything else.
+        var (client, _) = CreateClient("""{"results":[],"total_count":"17","links":{}}""");
+
+        var page = await client.Events.GetPageAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(17, page.TotalCount);
+    }
+
+    [Fact]
     public async Task Events_api_timestamp_is_parsed_from_iso8601()
     {
         // Webhooks report unix seconds while the Events API reports ISO 8601;

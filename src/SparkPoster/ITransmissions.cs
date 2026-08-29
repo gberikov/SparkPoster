@@ -13,7 +13,11 @@ public interface ITransmissions
     /// </param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The result of the send.</returns>
-    /// <exception cref="SparkPostApiException">SparkPost answered with an error status.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="transmission"/> is <c>null</c>.</exception>
+    /// <exception cref="SparkPostApiException">
+    /// SparkPost answered with an error status: the request did not pass validation (422),
+    /// or the same idempotency key arrived with a different body (409, code 1600).
+    /// </exception>
     /// <exception cref="SparkPostRateLimitException">The request (429) or sending (420) limit was exceeded.</exception>
     Task<TransmissionResponse> SendAsync(
         TransmissionRequest transmission,
@@ -24,6 +28,10 @@ public interface ITransmissions
     /// <param name="campaignId">The campaign identifier.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task that completes once the request is accepted.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="campaignId"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="campaignId"/> is empty or whitespace.</exception>
+    /// <exception cref="SparkPostApiException">SparkPost answered with an error status.</exception>
+    /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
     /// <remarks>
     /// SparkPost answers immediately and deletes in the background: every cancelled message
     /// produces a <c>bounce</c> event with the reason "554 5.7.1 [internal] Campaign cancelled".

@@ -9,6 +9,11 @@ public interface ITemplates
     /// <param name="definition">The template definition.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The identifier of the created template.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <c>null</c>.</exception>
+    /// <exception cref="SparkPostApiException">
+    /// The identifier is already taken (409), or the definition did not pass validation (422).
+    /// </exception>
+    /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
     Task<string> CreateAsync(TemplateRequest definition, CancellationToken cancellationToken = default);
 
     /// <summary>Returns a template.</summary>
@@ -19,6 +24,12 @@ public interface ITemplates
     /// </param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The template.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="id"/> is empty or whitespace.</exception>
+    /// <exception cref="SparkPostApiException">
+    /// No template with this identifier exists, or the requested version does not (404).
+    /// </exception>
+    /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
     Task<Template> GetAsync(string id, bool? draft = null, CancellationToken cancellationToken = default);
 
     /// <summary>Returns every template.</summary>
@@ -26,6 +37,8 @@ public interface ITemplates
     /// <param name="sharedWithSubaccounts">Filters by whether the template is shared with subaccounts.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The templates, without their content.</returns>
+    /// <exception cref="SparkPostApiException">SparkPost answered with an error status.</exception>
+    /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
     Task<IReadOnlyList<Template>> ListAsync(
         bool? draft = null,
         bool? sharedWithSubaccounts = null,
@@ -40,6 +53,15 @@ public interface ITemplates
     /// </param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task that completes once the template is updated.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="id"/> or <paramref name="definition"/> is <c>null</c>.
+    /// </exception>
+    /// <exception cref="ArgumentException"><paramref name="id"/> is empty or whitespace.</exception>
+    /// <exception cref="SparkPostApiException">
+    /// No template with this identifier exists (404), or the definition did not pass
+    /// validation (422).
+    /// </exception>
+    /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
     Task UpdateAsync(
         string id,
         TemplateRequest definition,
@@ -50,6 +72,12 @@ public interface ITemplates
     /// <param name="id">The template identifier.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task that completes once the draft is published.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="id"/> is empty or whitespace.</exception>
+    /// <exception cref="SparkPostApiException">
+    /// No template with this identifier exists (404), or the draft did not pass validation (422).
+    /// </exception>
+    /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
     /// <remarks>
     /// From this point on, transmissions that name this template send the new content —
     /// no change to the sending code is needed.
@@ -60,6 +88,12 @@ public interface ITemplates
     /// <param name="id">The template identifier.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task that completes once the template is deleted.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="id"/> is empty or whitespace.</exception>
+    /// <exception cref="SparkPostApiException">
+    /// No template with this identifier exists (404), or it is still in use (409).
+    /// </exception>
+    /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
     /// <remarks>
     /// A template that is in use by a scheduled transmission or an A/B test cannot be deleted:
     /// SparkPost answers with a 409.
@@ -72,6 +106,13 @@ public interface ITemplates
     /// <param name="draft"><c>true</c> to preview the draft rather than the published version.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The rendered content.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="id"/> is empty or whitespace.</exception>
+    /// <exception cref="SparkPostApiException">
+    /// No template with this identifier exists (404), or the substitution data does not
+    /// satisfy the template and rendering failed (422).
+    /// </exception>
+    /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
     Task<TemplateContent> PreviewAsync(
         string id,
         JsonNode? substitutionData = null,

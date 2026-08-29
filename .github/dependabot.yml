@@ -1,0 +1,27 @@
+# Actions are pinned to commit SHAs in ci.yml, so nothing bumps them on its own.
+version: 2
+updates:
+  # Pull requests target develop: per git flow master takes merges only from release/*
+  # and hotfix/*. Dependabot security updates still go to the default branch — that is
+  # its documented behaviour and target-branch does not apply to them.
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(ci)"
+
+  - package-ecosystem: nuget
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # One pull request per line rather than one per package: these move together.
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*"]
+      xunit:
+        patterns: ["xunit*"]

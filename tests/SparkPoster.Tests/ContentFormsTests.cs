@@ -154,6 +154,42 @@ public sealed class ContentFormsTests
     }
 
     [Fact]
+    public async Task Scheduled_send_is_sent_with_whole_seconds()
+    {
+        var startTime = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.FromHours(-4)).AddTicks(1234567);
+
+        var body = await CaptureBodyAsync(
+            Transmission.Create()
+                .From("noreply@example.com")
+                .To("user@example.com")
+                .Html("<p>hi</p>")
+                .StartTime(startTime)
+                .Build());
+
+        Assert.Equal("2026-09-01T08:00:00-04:00", (string)JsonNode.Parse(body)!["options"]!["start_time"]!);
+    }
+
+    [Fact]
+    public async Task Start_time_round_trips_through_serialization()
+    {
+        var startTime = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.FromHours(-4)).AddTicks(1234567);
+
+        var body = await CaptureBodyAsync(
+            Transmission.Create()
+                .From("noreply@example.com")
+                .To("user@example.com")
+                .Html("<p>hi</p>")
+                .StartTime(startTime)
+                .Build());
+
+        var restored = JsonSerializer.Deserialize<TransmissionRequest>(body, SnakeCase);
+
+        Assert.Equal(
+            new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.FromHours(-4)),
+            restored!.Options!.StartTime);
+    }
+
+    [Fact]
     public void Mixing_content_forms_is_rejected()
     {
         var builder = Transmission.Create()

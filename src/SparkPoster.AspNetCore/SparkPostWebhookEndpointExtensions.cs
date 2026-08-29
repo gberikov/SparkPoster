@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using SparkPoster.AspNetCore;
@@ -17,7 +18,11 @@ public static class SparkPostWebhookEndpointExtensions
     /// <param name="endpoints">The application's endpoint routes.</param>
     /// <param name="pattern">The endpoint path.</param>
     /// <param name="handler">The batch handler.</param>
-    /// <param name="options">How to prove the call genuine.</param>
+    /// <param name="options">
+    /// How to prove the call genuine. Required: SparkPost webhooks carry no signature, so an
+    /// endpoint with nothing configured accepts forged events from anyone who learns its URL.
+    /// Set <see cref="SparkPostWebhookOptions.AllowAnonymous"/> to say that out loud.
+    /// </param>
     /// <returns>The endpoint convention builder.</returns>
     /// <remarks>
     /// <para>
@@ -37,26 +42,51 @@ public static class SparkPostWebhookEndpointExtensions
     /// <see cref="SparkPostEventBatch.BatchId"/> or <see cref="SparkPostEvent.EventId"/>.
     /// </para>
     /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="endpoints"/>, <paramref name="handler"/> or <paramref name="options"/>
+    /// is <c>null</c>.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="options"/> configures no check, configures one only half way — a
+    /// header name without its value, a user name without its password — or configures more
+    /// than one: both the secret header and Basic authentication, or a check next to
+    /// <see cref="SparkPostWebhookOptions.AllowAnonymous"/>.
+    /// </exception>
     public static IEndpointConventionBuilder MapSparkPostWebhook(
         this IEndpointRouteBuilder endpoints,
         string pattern,
         Func<SparkPostEventBatch, CancellationToken, Task> handler,
-        SparkPostWebhookOptions? options = null)
+        SparkPostWebhookOptions options)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(handler);
+        ArgumentNullException.ThrowIfNull(options);
+
+        options.Validate();
 
         return endpoints.MapPost(pattern, async context =>
         {
-            if (options is not null && !IsAuthorized(context.Request, options))
+            if (!IsAuthorized(context.Request, options))
             {
                 context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                 return;
             }
 
-            var events = await SparkPostWebhookParser
-                .ParseAsync(context.Request.Body, context.RequestAborted)
-                .ConfigureAwait(false);
+            IReadOnlyList<SparkPostEvent> events;
+
+            try
+            {
+                events = await SparkPostWebhookParser
+                    .ParseAsync(context.Request.Body, context.RequestAborted)
+                    .ConfigureAwait(false);
+            }
+            catch (JsonException)
+            {
+                // A body that will never parse is answered 400 rather than 500, so the logs tell
+                // "they sent garbage" apart from "my handler threw". SparkPost retries either way.
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
+            }
 
             var batch = new SparkPostEventBatch
             {
@@ -72,23 +102,23 @@ public static class SparkPostWebhookEndpointExtensions
 
     private static bool IsAuthorized(HttpRequest request, SparkPostWebhookOptions options)
     {
-        if (!options.HasAnyCheck)
-        {
-            return true;
-        }
-
         if (options.SecretHeaderName is { } headerName)
         {
             return FixedTimeEquals(request.Headers[headerName], options.SecretHeaderValue);
         }
 
-        var expected = Convert.ToBase64String(
-            Encoding.UTF8.GetBytes($"{options.BasicAuthUsername}:{options.BasicAuthPassword}"));
+        if (options.BasicAuthUsername is not null)
+        {
+            var expected = Convert.ToBase64String(
+                Encoding.UTF8.GetBytes($"{options.BasicAuthUsername}:{options.BasicAuthPassword}"));
 
-        var actual = request.Headers.Authorization.ToString();
+            var actual = request.Headers.Authorization.ToString();
 
-        return actual.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase)
-            && FixedTimeEquals(actual["Basic ".Length..], expected);
+            return actual.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase)
+                && FixedTimeEquals(actual["Basic ".Length..], expected);
+        }
+
+        return options.AllowAnonymous;
     }
 
     /// <summary>

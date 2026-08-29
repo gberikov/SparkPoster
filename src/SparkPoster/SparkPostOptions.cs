@@ -1,6 +1,10 @@
 namespace SparkPoster;
 
-/// <summary>Configuration for the SparkPost client.</summary>
+/// <summary>
+/// Configuration for the SparkPost client. The values are read when a client is constructed;
+/// changing them afterwards does not affect that client, while a client created later through
+/// <see cref="ISparkPostClient.ForSubaccount"/> reads the values as they are then.
+/// </summary>
 public sealed class SparkPostOptions
 {
     /// <summary>
