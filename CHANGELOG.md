@@ -42,6 +42,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the ve
 - `UpsertManyAsync` sends only `recipient`, `type`, `description` and `list_id` per entry — the
   fields the bulk endpoint documents. An entry read back through `GetAsync` or `SearchAsync` used
   to go out with `source`, `created`, `updated` and `subaccount_id` attached.
+- `PreviewAsync` accepts substitution data that is part of another `JsonNode` tree instead of
+  throwing `InvalidOperationException`.
 
 ### Added
 

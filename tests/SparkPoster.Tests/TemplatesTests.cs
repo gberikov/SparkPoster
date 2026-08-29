@@ -135,6 +135,20 @@ public sealed class TemplatesTests
     }
 
     [Fact]
+    public async Task Preview_accepts_substitution_data_that_belongs_to_another_tree()
+    {
+        var (client, handler) = CreateClient("""{"results":{"subject":"Hi Bob"}}""");
+        var tree = new JsonObject { ["data"] = new JsonObject { ["name"] = "Bob" } };
+
+        await client.Templates.PreviewAsync(
+            "welcome",
+            tree["data"],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        AssertJson("""{"substitution_data":{"name":"Bob"}}""", handler.LastBody!);
+    }
+
+    [Fact]
     public async Task Deleting_a_template_in_use_surfaces_the_conflict()
     {
         var (client, _) = CreateClient(

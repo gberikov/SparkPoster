@@ -120,7 +120,9 @@ internal sealed class TemplatesResource : ITemplates
             HttpMethod.Post,
             $"templates/{Uri.EscapeDataString(id)}/preview{query}");
 
-        var body = new JsonObject { ["substitution_data"] = substitutionData ?? new JsonObject() };
+        // DeepClone: a JsonNode has a single parent, so a node taken from the caller's own tree
+        // cannot be attached here directly.
+        var body = new JsonObject { ["substitution_data"] = substitutionData?.DeepClone() ?? new JsonObject() };
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
         return await _requester
