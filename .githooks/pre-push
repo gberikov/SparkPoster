@@ -1,12 +1,12 @@
 #!/bin/sh
-# Защита master и тегов от удаления и перезаписи.
+# Protects master and tags from deletion and history rewrites.
 #
-# GitHub-side protection (rulesets / branch protection) для приватных репозиториев
-# требует GitHub Pro, поэтому защита живёт здесь. Она локальная: работает на машине,
-# где выполнен `git config core.hooksPath .githooks`. При клонировании репозитория
-# эту команду нужно выполнить заново — git не переносит конфиг.
+# The GitHub rulesets on master and refs/tags/** enforce the same rules server-side;
+# this hook is the second line of defence and catches the mistake before the network
+# round-trip. It is local: it works only where `git config core.hooksPath .githooks`
+# has been run. Re-run that command after every clone — git does not carry config over.
 #
-# Обойти осознанно: git push --no-verify
+# To bypass deliberately: git push --no-verify
 
 zero=0000000000000000000000000000000000000000
 status=0
@@ -18,13 +18,13 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
     esac
 
     if [ "$local_sha" = "$zero" ]; then
-        echo "pre-push: удаление $remote_ref запрещено." >&2
+        echo "pre-push: deleting $remote_ref is not allowed." >&2
         status=1
         continue
     fi
 
     if [ "$remote_sha" != "$zero" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
-        echo "pre-push: не-fast-forward пуш в $remote_ref запрещён (перезапись истории)." >&2
+        echo "pre-push: non-fast-forward push to $remote_ref is not allowed (history rewrite)." >&2
         status=1
     fi
 done

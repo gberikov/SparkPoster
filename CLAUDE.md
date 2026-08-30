@@ -1,97 +1,89 @@
 # SparkPoster
 
-Always respond in Russian, regardless of the language of the prompt. Keep code, identifiers,
-commit messages, and technical terms as-is.
+A .NET client library for the SparkPost REST API. Design decisions and their rationale live in
+[`docs/design.md`](docs/design.md) — read it before any architectural change.
 
-.NET-библиотека для SparkPost REST API. Проектные решения и обоснования — в
-[`docs/design.md`](docs/design.md), читать перед любой архитектурной правкой.
+## Language
 
-## Язык
-
-**Весь код — на английском**: XML-доки, тексты исключений, комментарии, имена тестов.
-Библиотека международная: XML-доки уезжают в NuGet-пакет и всплывают в IntelliSense
-у каждого потребителя, а тексты исключений попадают в чужие логи и баг-репорты.
-
-Русскими остаются `docs/` и этот файл — рабочие документы, в пакет они не входят.
-Сообщения коммитов — на русском (описание), тип и scope латиницей.
+**Everything is in English**: code, XML docs, exception messages, comments, test names,
+documentation, commit messages. The library is international: XML docs ship in the NuGet package
+and surface in every consumer's IntelliSense, exception messages end up in other people's logs
+and bug reports, and `git log` is documentation too.
 
 ## Git flow
 
-Репозиторий работает по git flow (как в `C:\Develop\ProfitDay\profitday.kz`):
+The repository follows git flow:
 
-| Ветка | Назначение |
-|-------|------------|
-| `master` | Стабильные релизы, только merge из `release/*` и `hotfix/*` |
-| `develop` | Интеграционная ветка, база для всех фич |
-| `feature/*` | Новая функциональность, ответвляется от `develop` |
-| `bugfix/*` | Исправления в `develop` |
-| `release/*` | Подготовка релиза: `develop` → `master` |
-| `hotfix/*` | Срочные правки от `master` |
+| Branch | Purpose |
+|--------|---------|
+| `master` | Stable releases; merges from `release/*` and `hotfix/*` only |
+| `develop` | Integration branch; base for all features |
+| `feature/*` | New functionality; branches off `develop` |
+| `bugfix/*` | Fixes in `develop` |
+| `release/*` | Release preparation: `develop` → `master` |
+| `hotfix/*` | Urgent fixes off `master` |
 
-- **Прямые коммиты в `master` и `develop` запрещены** — только через ветки и merge.
-- Каждая ветка пушится на `origin` (`https://github.com/gberikov/SparkPoster`, приватный).
-- Теги версий — **без префикса**: `0.1.0`, а не `v0.1.0` (совпадает с дефолтом MinVer,
-  который берёт версию пакета из тега). Тег ставится на `master` при релизе через `release/*`.
-- Конфигурация лежит в `.git/config` (`gitflow.*`), команды `git flow feature start <name>` и т.п.
-  работают из коробки; вручную то же самое — `git checkout -b feature/<name> develop`.
+- **No direct commits to `master` or `develop`** — branches and merges only.
+- Branches are pushed to `origin` (`https://github.com/gberikov/SparkPoster`) and land in
+  `develop` through a pull request.
+- Version tags have **no prefix**: `0.1.0`, not `v0.1.0` (matches the MinVer default, which
+  derives the package version from the tag). The tag goes on `master` at release time via
+  `release/*`.
+- The git-flow extension with default settings (`master`/`develop`, `feature/`, `bugfix/`,
+  `release/`, `hotfix/`, empty tag prefix) matches this layout, so `git flow feature start <name>`
+  works; by hand it is `git checkout -b feature/<name> develop`.
 
-### Защита master и тегов
+### Protecting master and tags
 
-Репозиторий публичный, поэтому защита живёт на стороне GitHub — два активных ruleset'а:
+The repository is public, so protection lives on the GitHub side — two active rulesets:
 
-| Ruleset | Цель | Запрещает |
-|---------|------|-----------|
-| `master` | `refs/heads/master` | удаление, не-fast-forward пуш |
-| `version tags` | `refs/tags/**` | удаление, перезапись, не-fast-forward |
+| Ruleset | Target | Forbids |
+|---------|--------|---------|
+| `master` | `refs/heads/master` | deletion, non-fast-forward push |
+| `version tags` | `refs/tags/**` | deletion, update, non-fast-forward |
 
-Создание тега разрешено, изменение существующего — нет: выпущенная версия неизменяема,
-как и пакет на nuget.org. Bypass-акторов у рулсетов нет, они действуют и на владельца.
-Если понадобится force-push в `master`, ruleset придётся явно выключить в UI — это
-заметное действие, в отличие от тихого `--no-verify`.
+Creating a tag is allowed; changing an existing one is not: a released version is immutable,
+like the package on nuget.org. The rulesets have no bypass actors — they apply to the owner too.
+If a force-push to `master` is ever needed, the ruleset has to be explicitly disabled in the UI —
+a visible action, unlike a quiet `--no-verify`.
 
-Локальный хук `.githooks/pre-push` оставлен вторым рубежом: он ловит ту же ошибку
-до сетевого запроса.
+The local `.githooks/pre-push` hook remains as a second line of defence: it catches the same
+mistake before the network round-trip.
 
 ```bash
-git config core.hooksPath .githooks   # выполнить заново после каждого клонирования
+git config core.hooksPath .githooks   # re-run after every clone
 ```
 
-## Коммиты
+## Commits
 
-Conventional commits, тип и scope латиницей, описание на русском:
+Conventional commits, in English:
 
 ```
-feat(transmissions): fluent-билдер для inline-контента
-fix(webhooks): не падать на неизвестном типе события
-docs(design): решение по идемпотентности
-refactor(json): вынести конвертер событий
-test(transmissions): эталонный JSON запроса
+feat(transmissions): fluent builder for inline content
+fix(webhooks): do not fail on an unknown event type
+docs(design): decision on idempotency
+refactor(json): extract the event converter
+test(transmissions): golden JSON for the request
 ```
 
 ## Build & Test
 
 ```bash
-rtk dotnet build SparkPoster.slnx
-dotnet test --solution SparkPoster.slnx     # xUnit v3 на Microsoft.Testing.Platform
+dotnet build SparkPoster.slnx
+dotnet test --solution SparkPoster.slnx     # xUnit v3 on Microsoft.Testing.Platform
 ```
 
-**`dotnet test` — без `rtk`.** Обёртка (0.45.0) не понимает форму `--solution` из
-Microsoft.Testing.Platform: она молча прогоняет **ноль** тестов и возвращает exit 5,
-тогда как та же команда напрямую даёт 93 зелёных. Это не косметика вывода — искажается
-сам результат, поэтому «зелёный прогон» через `rtk` ничего не доказывает.
-`rtk dotnet build` работает нормально.
+There are **no integration tests and no `SPARKPOST_API_KEY` variable yet** — every test goes
+through `FakeHttpMessageHandler`, no key is needed anywhere. The sandbox domain
+`sparkpostbox.com` is limited to **5 messages for the lifetime of the account**, so a real send
+stays a manual smoke test and never runs in CI.
 
-Интеграционных тестов и переменной `SPARKPOST_API_KEY` **пока не существует** — все тесты
-идут через `FakeHttpMessageHandler`, ключ никуда не нужен. Sandbox-домен `sparkpostbox.com`
-ограничен **5 письмами за всё время жизни аккаунта**, поэтому реальная отправка остаётся
-ручным smoke-тестом и в CI не попадает никогда.
+## Do not change without thinking
 
-## Что нельзя менять не подумав
-
-- **API-ключ не должен попадать в логи, сообщения исключений и `ToString()`.**
-- `Idempotency-Key` генерируется автоматически на каждый `SendAsync` — без него внешний
-  retry-handler отправит письмо дважды.
-- Неизвестный тип события вебхука **никогда не бросает исключение** — иначе SparkPost
-  начнёт ретраить весь батч, включая уже обработанные события.
-- `DefaultIgnoreCondition = WhenWritingNull` в JSON: `null` в поле трактуется SparkPost
-  как «сбросить», а не «не трогать».
+- **The API key must never appear in logs, exception messages, or `ToString()`.**
+- `Idempotency-Key` is generated automatically on every `SendAsync` — without it an external
+  retry handler sends the message twice.
+- An unknown webhook event type **never throws** — otherwise SparkPost starts retrying the whole
+  batch, including events that were already processed.
+- `DefaultIgnoreCondition = WhenWritingNull` in JSON: SparkPost treats `null` in a field as
+  "reset", not "leave alone".

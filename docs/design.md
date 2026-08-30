@@ -1,78 +1,78 @@
-# SparkPoster — проектные решения
+# SparkPoster — design decisions
 
-Современная .NET-библиотека для SparkPost REST API: fluent для transmissions, вебхуки,
-async/await, максимальное покрытие API.
+A modern .NET library for the SparkPost REST API: fluent transmissions, webhooks, async/await,
+maximum API coverage.
 
-Документ фиксирует решения, принятые в интервью, вместе с обоснованиями — чтобы через
-полгода не переспорить их заново.
+This document records the decisions made during the design interview, together with their
+rationale — so that six months from now they are not argued all over again.
 
-## 0. Контекст, который надо знать до чтения
+## 0. Context you need before reading
 
-**SparkPost стал Bird Email.** Параллельно с легаси-API (`https://api.sparkpost.com/api/v1`)
-существует новый Bird API: хост `https://us1.platform.bird.com/v1`, `Authorization: Bearer bk_us1_…`,
-`POST /v1/email/messages` вместо `/transmissions`, плоский payload, `202 Accepted`, ID с префиксами
-(`em_`, `dom_`, `whk_`, `sup_`), `PATCH` вместо `PUT`, курсорная пагинация, конверт ошибок
-`{type, code, message, request_id}`, подпись вебхуков по Standard Webhooks (`webhook-id`,
-`webhook-timestamp`, `webhook-signature`). Официальные SDK: TypeScript, Go, Python + CLI. **.NET нет.**
+**SparkPost became Bird Email.** Alongside the legacy API (`https://api.sparkpost.com/api/v1`)
+there is a new Bird API: host `https://us1.platform.bird.com/v1`, `Authorization: Bearer bk_us1_…`,
+`POST /v1/email/messages` instead of `/transmissions`, a flat payload, `202 Accepted`, prefixed IDs
+(`em_`, `dom_`, `whk_`, `sup_`), `PATCH` instead of `PUT`, cursor pagination, an error envelope
+`{type, code, message, request_id}`, webhook signatures per Standard Webhooks (`webhook-id`,
+`webhook-timestamp`, `webhook-signature`). Official SDKs: TypeScript, Go, Python + a CLI. **No .NET.**
 
-**Дата отключения легаси-API публично не объявлена** (искали — не нашли).
+**No shutdown date for the legacy API has been announced publicly** (we looked — found nothing).
 
-**Решение: пишем против легаси SparkPost v1**, потому что рабочий аккаунт и ключ есть только там.
-Слой абстракции «SparkPost или Bird за одним фасадом» не закладываем: если понадобится Bird,
-это будет другая библиотека, а не `if` внутри этой.
+**Decision: we build against legacy SparkPost v1**, because that is the only place a working
+account and key exist. No "SparkPost or Bird behind one facade" abstraction layer: if Bird is ever
+needed, it will be a different library, not an `if` inside this one.
 
-## 1. Решения
+## 1. Decisions
 
-| # | Вопрос | Решение | Почему |
-|---|--------|---------|--------|
-| 1 | Аудитория | OSS: публичный репозиторий, пакеты на nuget.org | Момент «позже» наступил вместе с первым потребителем (profitday.kz). Обвязку не платили авансом — поставили, когда публикация стала реальной |
-| 2 | TFM | Только `net8.0` | Работает у потребителей на net8/9/10, ноль `#if` |
-| 3 | Пакеты | `SparkPoster` + `.Extensions.DependencyInjection` + `.AspNetCore` | Выбор пользователя |
-| 4 | Объём v1.0 | Transmissions, Event Webhooks (CRUD + приём), Events, Templates, Suppression List, Sending Domains | Инфраструктуру дёшево менять на трёх разделах и дорого на восемнадцати |
-| 5 | Форма API | Фасад `SparkPostClient` (+ `ISparkPostClient`) с проперти-ресурсами за интерфейсами; в DI только фасад | 18 регистраций — налог на каждое приложение; интерфейсы окупаются первым юнит-тестом потребителя |
-| 6 | Fluent | Билдер независим от клиента, `Build()` → объект, отправка отдельным вызовом | Билдер — чистая функция: тестируется без HTTP, кладётся в очередь |
-| 7a | Модель | `TransmissionRequest` — публичный record с `init` | `internal` — тупик: отставание билдера от API на одно поле заставляет форкать библиотеку |
-| 7b | Билдер | Мутабельный, возвращает `this`, не thread-safe (в XML-доке) | Сценарий «заготовка + разные получатели» решается через `tx with { … }` бесплатно |
-| 8 | Валидация | Только структурные инварианты: null-аргументы + три `required`-поля в `Build()` | Зеркало серверных правил протухает и врёт; регулярка на email ломает легальные адреса |
-| 9a | Ошибки | Исключения. `SparkPostException` → `SparkPostApiException` (`StatusCode`, `Errors`, `RawBody`); отдельно `SparkPostRateLimitException` с `RetryAfter` (429/420) | Глубокая иерархия — 6 классов ради `catch … when (e.StatusCode == 401)` |
-| 9b | 404 | Кидаем, как и всё остальное | `null` у одних методов и исключение у других — источник тихих багов |
-| 10 | Целевой API | Легаси SparkPost v1 | Рабочий ключ есть только там |
-| 11a | Ретраи | Своих нет; `AddSparkPost()` возвращает `IHttpClientBuilder`, потребитель вешает `.AddStandardResilienceHandler()` | Backoff, jitter и circuit breaker уже написаны и оттестированы в пакете Microsoft |
-| 11b | Идемпотентность | `Idempotency-Key` генерируем автоматически на каждый `SendAsync`, если не задан явно | `DelegatingHandler` повторяет **тот же** `HttpRequestMessage` → внешний ретрай становится безопасным без единой настройки. Без ключа resilience-handler на 5xx отправит письмо дважды |
-| 12a | События | Типизированная иерархия + `UnknownSparkPostEvent` + `JsonExtensionData`; неизвестный тип **никогда не бросает** | Новый тип события не должен ронять эндпоинт: SparkPost начнёт ретраить весь батч, включая обработанное |
-| 12b | AspNetCore | `app.MapSparkPostWebhook(path, handler, options)` + проверка basic-auth/секретного заголовка; `options` обязателен (см. §8) | Исключение из обработчика → 500 (SparkPost повторит), успех → 200. Буферизация в `Channel` по умолчанию молча превращает at-least-once в at-most-once |
-| 13a | JSON | Source-generated `JsonSerializerContext`, `IsAotCompatible` | Дёшево сделать сразу, дорого прикрутить потом. Кастомный конвертер для событий нужен в любом случае: дискриминатор лежит в имени внешнего свойства `msys.message_event` |
-| 13b | Enum'ы | `enum` там, где значение придумываем мы; `string` + `const`-константы там, где сервер | Строгий enum падает на первом новом значении и роняет весь батч |
-| 14 | Пагинация | И `GetPageAsync(query, cursor, ct)`, и `IAsyncEnumerable` поверх него | Продакшн-сценарий «продолжить с чекпоинта» требует явного курсора; обёртка — ~15 строк без состояния |
-| 15a | Хост | Одно свойство `Uri BaseUrl` + константы `SparkPostEndpoints.Us/.Eu` | Два способа задать одно и то же = баг-репорт «поставил Eu, шлёт в US» |
-| 15b | Субаккаунты | `client.ForSubaccount(42)` — обёртка над тем же `HttpClient` | Заголовок только в `HttpRequestMessage`, не в `DefaultRequestHeaders` |
-| 16a | Тесты | xUnit v3 + голые `Assert` + свой `FakeHttpMessageHandler` | FluentAssertions с v8 платная для коммерческого использования |
-| 16b | Эталон контракта | Эталонный JSON запроса (ловит нашу сериализацию) **и** фикстуры ответов из доки (ловят нашу десериализацию) | Разные ошибки: вход контролируем мы, выход — SparkPost |
-| 17 | Раскладка | `src/` (3 проекта) + `tests/` (2), `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig` | `TreatWarningsAsErrors` + `GenerateDocumentationFile`: отсутствующий XML-док ломает сборку |
-| 18a | substitution_data | `object?` с `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]` **и** перегруз с `JsonTypeInfo<T>` | Так это решает сам ASP.NET Core: удобно по умолчанию, AOT-чисто по требованию |
-| 18b | Вложения | `byte[]` + `Attachment.FromFile/FromStream` | SparkPost принимает только base64 внутри JSON — потоковой отправки не существует в принципе |
-| 19 | Наблюдаемость | Ничего своего; `ActivitySource` — в бэклог | `IHttpClientFactory` и OTel-инструментация `HttpClient` уже дают логи и спаны |
-| 20 | Формы контента | Один билдер, взаимоисключающие методы, проверка в `Build()` | Типобезопасный вариант требует рекурсивного дженерика `Builder<TSelf>` в публичных сигнатурах |
-| 21a | Namespace | Плоско в `SparkPoster`; события — в `SparkPoster.Webhooks` | `TransmissionRequest` и `SparkPostClient` живут в одной строке кода |
-| 21b | Async | Суффикс `Async`, синхронных обёрток нет, `CancellationToken` последним с `= default`, `ConfigureAwait(false)` везде с включённым `CA2007` | Клиент потокобезопасен и рассчитан на singleton |
-| 22 | Лицензия/версии | MIT, MinVer (версия из git-тегов) | `LICENSE` — в первом коммите. Теги без префикса: `0.1.0`. `0.x` = право ломать API |
-| 23 | Порядок работ | Тончайший вертикальный срез end-to-end | Инфраструктурные решения проверяются только на сквозном сценарии |
+| # | Question | Decision | Why |
+|---|----------|----------|-----|
+| 1 | Audience | OSS: public repository, packages on nuget.org | "Later" arrived together with the first consumer (a downstream project). The publishing scaffolding was not paid for up front — it went in when publication became real |
+| 2 | TFM | `net8.0` only | Runs for consumers on net8/9/10, zero `#if` |
+| 3 | Packages | `SparkPoster` + `.Extensions.DependencyInjection` + `.AspNetCore` | Maintainer's call |
+| 4 | v1.0 scope | Transmissions, Event Webhooks (CRUD + receiving), Events, Templates, Suppression List, Sending Domains | Infrastructure is cheap to change across three sections and expensive across eighteen |
+| 5 | API shape | A `SparkPostClient` facade (+ `ISparkPostClient`) with resource properties behind interfaces; only the facade is registered in DI | 18 registrations are a tax on every application; the interfaces pay for themselves with the consumer's first unit test |
+| 6 | Fluent | The builder is independent of the client, `Build()` → object, sending is a separate call | The builder is a pure function: testable without HTTP, can be put on a queue |
+| 7a | Model | `TransmissionRequest` is a public record with `init` | `internal` is a dead end: the builder lagging one field behind the API forces a fork of the library |
+| 7b | Builder | Mutable, returns `this`, not thread-safe (stated in the XML doc) | The "template + different recipients" scenario is solved by `tx with { … }` for free |
+| 8 | Validation | Structural invariants only: null arguments + three `required` fields in `Build()` | A mirror of server rules goes stale and lies; an email regex breaks legitimate addresses |
+| 9a | Errors | Exceptions. `SparkPostException` → `SparkPostApiException` (`StatusCode`, `Errors`, `RawBody`); a separate `SparkPostRateLimitException` with `RetryAfter` (429/420) | A deep hierarchy is 6 classes for the sake of `catch … when (e.StatusCode == 401)` |
+| 9b | 404 | Throws, like everything else | `null` from some methods and an exception from others is a source of silent bugs |
+| 10 | Target API | Legacy SparkPost v1 | The only place with a working key |
+| 11a | Retries | None of our own; `AddSparkPost()` returns `IHttpClientBuilder`, the consumer attaches `.AddStandardResilienceHandler()` | Backoff, jitter and circuit breaker are already written and tested in Microsoft's package |
+| 11b | Idempotency | `Idempotency-Key` is generated automatically on every `SendAsync` unless set explicitly | A `DelegatingHandler` replays the **same** `HttpRequestMessage` → an external retry becomes safe without a single setting. Without the key, a resilience handler sends the message twice on a 5xx |
+| 12a | Events | A typed hierarchy + `UnknownSparkPostEvent` + `JsonExtensionData`; an unknown type **never throws** | A new event type must not take the endpoint down: SparkPost starts retrying the whole batch, including what was already processed |
+| 12b | AspNetCore | `app.MapSparkPostWebhook(path, handler, options)` + basic-auth / secret-header check; `options` is required (see §8) | An exception from the handler → 500 (SparkPost retries), success → 200. Buffering through a `Channel` by default silently turns at-least-once into at-most-once |
+| 13a | JSON | Source-generated `JsonSerializerContext`, `IsAotCompatible` | Cheap to do up front, expensive to bolt on later. A custom converter for events is needed either way: the discriminator sits in the name of the outer property, `msys.message_event` |
+| 13b | Enums | `enum` where we invent the value; `string` + `const` constants where the server does | A strict enum fails on the first new value and takes the whole batch down |
+| 14 | Pagination | Both `GetPageAsync(query, cursor, ct)` and `IAsyncEnumerable` on top of it | The production "resume from a checkpoint" scenario needs an explicit cursor; the wrapper is ~15 stateless lines |
+| 15a | Host | A single `Uri BaseUrl` property + `SparkPostEndpoints.Us/.Eu` constants | Two ways to set the same thing = a bug report "set Eu, sends to US" |
+| 15b | Subaccounts | `client.ForSubaccount(42)` — a wrapper over the same `HttpClient` | The header goes only on the `HttpRequestMessage`, never into `DefaultRequestHeaders` |
+| 16a | Tests | xUnit v3 + bare `Assert` + our own `FakeHttpMessageHandler` | FluentAssertions is paid for commercial use since v8 |
+| 16b | Contract reference | A golden request JSON (catches our serialization) **and** response fixtures from the docs (catch our deserialization) | Different failure modes: we control the input, SparkPost controls the output |
+| 17 | Layout | `src/` (3 projects) + `tests/` (1), `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig` | `TreatWarningsAsErrors` + `GenerateDocumentationFile`: a missing XML doc breaks the build |
+| 18a | substitution_data | `object?` with `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]` **and** an overload taking `JsonTypeInfo<T>` | That is how ASP.NET Core itself solves it: convenient by default, AOT-clean on demand |
+| 18b | Attachments | `byte[]` + `Attachment.FromFile/FromStream` | SparkPost accepts only base64 inside JSON — streaming upload does not exist at all |
+| 19 | Observability | Nothing of our own; `ActivitySource` goes to the backlog | `IHttpClientFactory` and the OTel `HttpClient` instrumentation already give logs and spans |
+| 20 | Content forms | One builder, mutually exclusive methods, checked in `Build()` | The type-safe variant needs a recursive generic `Builder<TSelf>` in public signatures |
+| 21a | Namespace | Flat in `SparkPoster`; events in `SparkPoster.Webhooks` | `TransmissionRequest` and `SparkPostClient` live on the same line of code |
+| 21b | Async | `Async` suffix, no synchronous wrappers, `CancellationToken` last with `= default`, `ConfigureAwait(false)` everywhere with `CA2007` enabled | The client is thread-safe and meant to be a singleton |
+| 22 | License / versions | MIT, MinVer (version from git tags) | `LICENSE` is in the first commit. Tags without a prefix: `0.1.0`. `0.x` = the right to break the API |
+| 23 | Order of work | The thinnest possible vertical slice end to end | Infrastructure decisions are only validated by an end-to-end scenario |
 
-## 2. Безопасность — не обсуждается
+## 2. Security — not up for debate
 
-- API-ключ не попадает ни в сообщения исключений, ни в `ToString()` опций.
-- `RawBody` в исключении может содержать PII (адреса получателей в ошибках валидации) —
-  в XML-доке прямо написано, что его нельзя вслепую лить в логи.
-- У легаси-вебхуков SparkPost **нет HMAC-подписи**. Подлинность обеспечивается только тем,
-  что настроено при создании вебхука (basic-auth, OAuth2 или кастомные заголовки). В README:
-  эндпоинт обязан быть под HTTPS и под basic-auth или секретным заголовком, иначе кто угодно
-  шлёт фальшивые `bounce`-события.
-- Сравнение секретов — `CryptographicOperations.FixedTimeEquals`.
+- The API key never appears in exception messages or in the options' `ToString()`.
+- `RawBody` in an exception may contain PII (recipient addresses in validation errors) — the XML
+  doc says outright that it must not be dumped into logs blindly.
+- Legacy SparkPost webhooks **have no HMAC signature**. Authenticity rests solely on what was
+  configured when the webhook was created (basic auth, OAuth2 or custom headers). README: the
+  endpoint must sit behind HTTPS and behind basic auth or a secret header, otherwise anyone can
+  send fake `bounce` events.
+- Secrets are compared with `CryptographicOperations.FixedTimeEquals`.
 
-## 3. Эскиз публичного API
+## 3. Public API sketch
 
 ```csharp
-// отправка
+// sending
 var tx = Transmission.Create()
     .From("noreply@example.com", "Example")
     .To("user@example.com")
@@ -84,14 +84,14 @@ var tx = Transmission.Create()
 var result = await client.Transmissions.SendAsync(tx, ct);
 // result.Id, result.TotalAcceptedRecipients, result.IsIdempotentReplay
 
-// субаккаунт
+// subaccount
 await client.ForSubaccount(42).Transmissions.SendAsync(tx, ct);
 
-// события: страница с явным курсором — или прозрачный перебор
+// events: a page with an explicit cursor — or transparent enumeration
 var page = await client.Events.GetPageAsync(query, cursor, ct);
 await foreach (var e in client.Events.SearchAsync(query, ct)) { }
 
-// приём вебхуков
+// receiving webhooks
 app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { },
     new SparkPostWebhookOptions
     {
@@ -100,101 +100,104 @@ app.MapSparkPostWebhook("/hooks/sparkpost", async (batch, ct) => { },
     });
 ```
 
-## 4. Порядок работ
+## 4. Order of work
 
-Состав v1.0 из решения №4 закрыт целиком: шаги 1–7 сделаны, 93 теста зелёные.
-Каждый шаг — своя feature-ветка, влитая в `develop` через `--no-ff`.
+The v1.0 scope from decision #4 is fully closed: steps 1–7 are done, 93 tests green.
+Each step was its own feature branch, merged into `develop` with `--no-ff`.
 
-1. **Каркас**: `global.json`, `Directory.Build.props`, `Directory.Packages.props`,
-   `src/Directory.Build.props`, `.editorconfig`, `LICENSE`, три проекта в `src/`.
-   Версионный тег не ставим: по git flow он появляется на `master` при релизе через
-   `release/*`, до тех пор MinVer выдаёт `0.0.0-alpha.0.N`.
-2. **Вертикальный срез**: `Transmission.Create()…Build()` → `Transmissions.SendAsync()` →
-   `TransmissionResponse`. Тест «цепочка даёт ровно этот JSON» (тело из документации) +
-   тест маппинга 422 в `SparkPostApiException` с `description` внутри.
-   Здесь же заводятся `tests/Directory.Build.props` и оба тест-проекта — вместе с первым
-   реальным тестом, а не пустыми заготовками с плейсхолдером.
-3. Остальные формы контента: шаблон, A/B, RFC822; вложения, планирование, отмена по `campaign_id`.
-4. Event Webhooks: CRUD + validate + batch-status.
-5. Приём вебхуков: модели событий, конвертер, `MapSparkPostWebhook`.
+1. **Skeleton**: `global.json`, `Directory.Build.props`, `Directory.Packages.props`,
+   `src/Directory.Build.props`, `.editorconfig`, `LICENSE`, three projects in `src/`.
+   No version tag: under git flow it appears on `master` at release time via `release/*`;
+   until then MinVer produces `0.0.0-alpha.0.N`.
+2. **Vertical slice**: `Transmission.Create()…Build()` → `Transmissions.SendAsync()` →
+   `TransmissionResponse`. A test "the chain produces exactly this JSON" (body from the
+   documentation) + a test mapping a 422 to `SparkPostApiException` with the `description` inside.
+   `tests/Directory.Build.props` and the test project are created here — together with the first
+   real test, not as empty scaffolding with a placeholder.
+3. The remaining content forms: template, A/B, RFC822; attachments, scheduling, cancellation by
+   `campaign_id`.
+4. Event Webhooks: CRUD + validate + batch status.
+5. Receiving webhooks: event models, the converter, `MapSparkPostWebhook`.
 6. Events: `GetPageAsync` + `IAsyncEnumerable`.
 7. Templates → Suppression List → Sending Domains.
-8. **Публикация**: метаданные пакетов (README, Source Link, `.snupkg`), CI на GitHub Actions
-   (тесты на push/PR, публикация на теге через Trusted Publishing — долгоживущего ключа
-   в секретах нет), рулсеты на `master` и теги. Первый релиз — `0.1.0`, не `1.0.0`:
-   решение №22 оставляет `0.x` право ломать API, и миграция profitday.kz этим правом
-   почти наверняка воспользуется.
+8. **Publishing**: package metadata (README, Source Link, `.snupkg`), CI on GitHub Actions
+   (tests on push/PR, publishing on tag via Trusted Publishing — no long-lived key in secrets),
+   rulesets on `master` and tags. The first release is `0.1.0`, not `1.0.0`: decision #22
+   reserves the right to break the API on `0.x`, and the first consumer's migration will almost
+   certainly use it.
 
-## 5. Что выяснилось по ходу
+## 5. What came up along the way
 
-Закрыто:
+Closed:
 
-- **Формат времени.** В вебхуках `timestamp` — секунды эпохи Unix строкой, в Events API —
-  ISO 8601 с миллисекундами. Один конвертер принимает обе формы плюс число; оба случая под тестом.
-- **Заголовок повтора.** В легаси-API это `X-Idempotent-Replayed`; `Idempotency-Replay`
-  встретился только в документации Bird. Читаются оба — стоит это ничего.
-- **Числа-строки.** SparkPost отдаёт одни и те же числовые поля то числами, то строками
-  (`response_code` в статусе батча), а `code` в ошибке — наоборот, то строкой, то числом.
-  Лечится `AllowReadingFromString` в контексте и отдельным конвертером для `code`.
-  Без второго разбор тела ошибки падал молча — вскрылось тестом.
-- **Форма `links`.** У курсорной пагинации встречается и объект с `next`, и массив `rel`/`href`.
-  Читаются обе.
-- **Формат `start_time`.** Документирован как `YYYY-MM-DDTHH:MM:SS+-HH:MM` — целые секунды с
-  офсетом. Обычный `DateTimeOffset` сериализуется с дробной частью (у `DateTimeOffset.UtcNow`
-  она есть всегда), поэтому на свойстве стоит отдельный конвертер: он отбрасывает доли секунды
-  (именно отбрасывает, не округляет) и сохраняет офсет вызывающего. Проверка на живом аккаунте
-  всё ещё не сделана, но повода отвергнуть запрос библиотека серверу больше не даёт.
+- **Time format.** In webhooks `timestamp` is Unix epoch seconds as a string; in the Events API
+  it is ISO 8601 with milliseconds. One converter accepts both forms plus a number; both cases
+  are under test.
+- **Replay header.** In the legacy API it is `X-Idempotent-Replayed`; `Idempotency-Replay` only
+  showed up in the Bird documentation. Both are read — it costs nothing.
+- **Numbers as strings.** SparkPost returns the same numeric fields sometimes as numbers,
+  sometimes as strings (`response_code` in the batch status), while `code` in an error goes the
+  other way — sometimes a string, sometimes a number. Fixed by `AllowReadingFromString` in the
+  context and a dedicated converter for `code`. Without the latter, parsing the error body failed
+  silently — surfaced by a test.
+- **Shape of `links`.** Cursor pagination comes with either an object with `next` or an array of
+  `rel`/`href`. Both are read.
+- **`start_time` format.** Documented as `YYYY-MM-DDTHH:MM:SS+-HH:MM` — whole seconds with an
+  offset. A plain `DateTimeOffset` serializes with a fractional part (`DateTimeOffset.UtcNow`
+  always has one), so the property carries a dedicated converter: it drops the fraction of a
+  second (drops, not rounds) and preserves the caller's offset. Not yet verified against a live
+  account, but the library no longer gives the server a reason to reject the request.
 
-Осталось проверить на живом аккаунте:
+Still to verify against a live account:
 
-- Полный список полей по категориям событий — брать из `GET /webhooks/events/documentation`
-  и `GET /webhooks/events/samples`; типизировано только употребимое, остальное лежит в `Extra`.
-- Поведение 409 с кодами `1600` (тот же ключ, другое тело — ошибка вызывающего) и
-  `1601` (запрос ещё выполняется — повторяемо).
+- The full list of fields per event category — take it from `GET /webhooks/events/documentation`
+  and `GET /webhooks/events/samples`; only what is actually used is typed, the rest lands in `Extra`.
+- The behaviour of 409 with codes `1600` (same key, different body — caller's error) and
+  `1601` (request still in flight — retryable).
 
-## 6. Отложено сознательно
+## 6. Deliberately deferred
 
-| Что | Когда добавлять |
-|-----|-----------------|
-| `samples/` с компилируемыми примерами | Примеров в README станет больше 3–4 |
-| Approval-тесты публичного API (PublicApiGenerator) | Вместе с тегом `1.0.0`. На `0.x` право ломать API зарезервировано осознанно и первый потребитель им пользуется — до стабилизации эти тесты дают только шум на каждом коммите |
-| Иконка пакета | Появится реальный png; до тех пор nuget.org рисует заглушку |
-| Мультитаргет `net8.0;net10.0` | Появится net10-only API или замеренная разница в перфе |
-| `netstandard2.0` / .NET Framework | Появится конкретный потребитель на Framework |
-| `ActivitySource` со спанами (`sparkpost.transmission_id`, число принятых получателей) | После рабочей библиотеки; публичный API не меняет |
-| Свой retry-handler | Если `AddStandardResilienceHandler` окажется недостаточен |
-| Metrics, A/B Testing, Snippets (`/api/labs`), Recipient Lists, Subaccounts, API Keys, IP Pools, Sending IPs, Inbound Domains, Relay Webhooks, Tracking Domains, DKIM Keys, Data Privacy | По разделу за раз после v1.0. Metrics и A/B Testing — последними: огромная поверхность параметров при низком спросе |
-| Буферизация вебхуков через `Channel` | Никогда по умолчанию — это осознанный выбор потребителя |
+| What | When to add |
+|------|-------------|
+| `samples/` with compilable examples | When README has more than 3–4 examples |
+| Public API approval tests (PublicApiGenerator) | Together with the `1.0.0` tag. On `0.x` the right to break the API is reserved deliberately and the first consumer uses it — until stabilization these tests only produce noise on every commit |
+| Package icon | When a real PNG exists; until then nuget.org draws a placeholder |
+| Multi-targeting `net8.0;net10.0` | When a net10-only API or a measured performance difference appears |
+| `netstandard2.0` / .NET Framework | When a concrete consumer on Framework appears |
+| `ActivitySource` with spans (`sparkpost.transmission_id`, number of accepted recipients) | After the library works; does not change the public API |
+| Our own retry handler | If `AddStandardResilienceHandler` turns out to be insufficient |
+| Metrics, A/B Testing, Snippets (`/api/labs`), Recipient Lists, Subaccounts, API Keys, IP Pools, Sending IPs, Inbound Domains, Relay Webhooks, Tracking Domains, DKIM Keys, Data Privacy | One section at a time after v1.0. Metrics and A/B Testing last: a huge parameter surface with low demand |
+| Webhook buffering through a `Channel` | Never by default — it is the consumer's deliberate choice |
 
-**Не делаем:** абстракцию поверх SparkPost и Bird одновременно; полное зеркало серверной
-валидации; глубокую иерархию исключений; тихую трансляцию `X-MSYS-SUBACCOUNT` в query-параметр
-`subaccounts` для Metrics/Events.
+**Not doing:** an abstraction over SparkPost and Bird at once; a full mirror of server-side
+validation; a deep exception hierarchy; silently translating `X-MSYS-SUBACCOUNT` into the
+`subaccounts` query parameter for Metrics/Events.
 
-## 7. Ограничения окружения
+## 7. Environment constraints
 
-- Sandbox-домен `sparkpostbox.com` — **5 писем за всё время жизни аккаунта**. Интеграционные
-  тесты гоняем на неотправляющих эндпоинтах; реальная отправка — один ручной smoke-тест, не в CI.
-- Интеграционный проект целиком пропускается без переменной `SPARKPOST_API_KEY`.
+- The sandbox domain `sparkpostbox.com` allows **5 messages for the lifetime of the account**.
+  A real send is a single manual smoke test, never in CI.
+- There is no integration test project yet. When one appears, it runs only against non-sending
+  endpoints and is skipped entirely without the `SPARKPOST_API_KEY` variable.
 
-## 8. Ревью перед 0.2.0
+## 8. Review before 0.2.0
 
-Найдено и закрыто. Всё, кроме последнего пункта, — правки в уже написанном коде,
-а не новые решения.
+Found and closed. Everything except the last item is a fix to code already written,
+not a new decision.
 
-| Что | Почему так |
-|-----|------------|
-| `MapSparkPostWebhook` требует `options`, полупустая пара падает на старте, явный `AllowAnonymous` | Было `options = null` → приёмник без проверок по умолчанию, а `HasAnyCheck` смотрел только на `SecretHeaderName` и `BasicAuthUsername`: конфиг с заполненным `SecretHeaderValue` и забытым именем **молча** пускал всех. Это ровно тот отказ, который не замечают, пока фальшивые `bounce` уже в базе. Ломает API — решение №22 это на `0.x` разрешает |
-| `PrintMembers` у `WebhookAuthCredentials`, `WebhookAuthRequestDetails`, `DkimSettings`, `Attachment` | Сгенерированный `ToString()` записи печатает все свойства. `Webhook`, прочитанный через `GetAsync`, уносил в логи собственный пароль и `access_token`, а `Body` (это `JsonNode`, он печатает JSON, в отличие от словаря) — `client_secret`. §2 запрещает это для API-ключа; тот же класс проблемы, другой секрет. `DkimSettings` печатает приватный ключ DKIM, который пользователь принёс сам, — секрет того же класса. `Attachment` — не секрет, а мегабайты base64 в логе |
-| Проверка `ApiKey` в конструкторе `SparkPostClient` | Пустой ключ уезжал пустым заголовком и возвращался невнятным 401. Проверка в конструкторе, а не `ValidateOnStart`: последний живёт в `Microsoft.Extensions.Hosting.Abstractions` и стоит лишней зависимости, а срабатывает всё равно при первом резолве типизированного клиента. Заодно отсекается `\n`: ключ уходит через `TryAddWithoutValidation`, который по определению ничего не валидирует |
-| Нормализация `BaseUrl` | `new Uri(base, "transmissions")` при базе без слэша на конце съедает последний сегмент: enterprise-эндпоинт `https://host/api/v1` слал бы всё на `https://host/api/`. Встроенные константы слэш имеют, введённый руками — нет |
-| Битое тело вебхука → 400 | Было 500, неотличимое в логах от «упал мой хендлер». Ретраить SparkPost всё равно будет — это про диагностику, не про ретраи |
-| `AddSparkPost(IConfiguration)` | README был вынужден писать `Configuration["SparkPost:ApiKey"]!` с null-forgiving — сам по себе признак нехватки перегрузки. Стоит зависимости `Microsoft.Extensions.Options.ConfigurationExtensions` (8.0.x, та же линия) и `EnableConfigurationBindingGenerator` в проекте DI. Биндинг идёт через генератор, рефлексия не нужна — значит, и атрибуты `Requires*` не нужны: сравнение с `SubstitutionData(object?)` здесь больше не работает |
-| `new SparkPostClient(options)` | Вне DI пользователь был обязан завести `HttpClient` и знать про его lifetime. Статический общий клиент с `PooledConnectionLifetime = 2 мин` — иначе застрявший DNS, единственная реальная опасность статического `HttpClient` |
-| `User-Agent: SparkPoster/{version}` | Норма для API-клиента и первое, что спросит их поддержка |
-| Экшены в CI по SHA + Dependabot, `SECURITY.md`, `CHANGELOG.md` | В джобе `publish` лежит OIDC-токен, который nuget.org меняет на ключ публикации: сдвинутый тег экшена = сдвинутый пакет |
+| What | Why |
+|------|-----|
+| `MapSparkPostWebhook` requires `options`, a half-filled pair fails at startup, explicit `AllowAnonymous` | It used to be `options = null` → a receiver with no checks by default, and `HasAnyCheck` looked only at `SecretHeaderName` and `BasicAuthUsername`: a config with `SecretHeaderValue` filled in and the name forgotten **silently** let everyone through. That is exactly the failure nobody notices until fake `bounce`s are already in the database. Breaks the API — decision #22 allows that on `0.x` |
+| `PrintMembers` on `WebhookAuthCredentials`, `WebhookAuthRequestDetails`, `DkimSettings`, `Attachment` | A record's generated `ToString()` prints every property. A `Webhook` read via `GetAsync` carried its own password and `access_token` into the logs, and `Body` (a `JsonNode`, which prints JSON, unlike a dictionary) — the `client_secret`. §2 forbids this for the API key; same class of problem, different secret. `DkimSettings` prints the private DKIM key the user supplied — a secret of the same class. `Attachment` is not a secret, but megabytes of base64 in a log |
+| `ApiKey` check in the `SparkPostClient` constructor | An empty key went out as an empty header and came back as an unhelpful 401. Checked in the constructor rather than via `ValidateOnStart`: the latter lives in `Microsoft.Extensions.Hosting.Abstractions` and costs an extra dependency, yet fires at the first resolve of the typed client anyway. `\n` is rejected at the same time: the key goes through `TryAddWithoutValidation`, which by definition validates nothing |
+| `BaseUrl` normalization | `new Uri(base, "transmissions")` with a base lacking a trailing slash eats the last segment: an enterprise endpoint `https://host/api/v1` would send everything to `https://host/api/`. The built-in constants have the slash; a hand-typed one may not |
+| Malformed webhook body → 400 | It was 500, indistinguishable in logs from "my handler crashed". SparkPost retries either way — this is about diagnostics, not retries |
+| `AddSparkPost(IConfiguration)` | README was forced to write `Configuration["SparkPost:ApiKey"]!` with a null-forgiving operator — in itself a sign of a missing overload. Costs a dependency on `Microsoft.Extensions.Options.ConfigurationExtensions` (8.0.x, same line) and `EnableConfigurationBindingGenerator` in the DI project. Binding goes through the generator, no reflection needed — so no `Requires*` attributes either: the comparison with `SubstitutionData(object?)` no longer holds here |
+| `new SparkPostClient(options)` | Outside DI the user had to create an `HttpClient` and know about its lifetime. A static shared client with `PooledConnectionLifetime = 2 min` — otherwise stale DNS, the only real danger of a static `HttpClient` |
+| `User-Agent: SparkPoster/{version}` | Standard for an API client and the first thing their support asks for |
+| CI actions pinned by SHA + Dependabot, `SECURITY.md`, `CHANGELOG.md` | The `publish` job holds an OIDC token that nuget.org exchanges for a publishing key: a moved action tag = a moved package |
 
-**Сознательно не тронуто:** `TransmissionRequest` и `Recipient` печатают в `ToString()` тело
-письма и данные подстановок. Это PII, а не секреты, и маскировать их — значит ломать
-отладку ради лога, который никто не пишет. Маскируются только записи, где секрет
-доказуемо есть.
-
+**Deliberately left alone:** `TransmissionRequest` and `Recipient` print the message body and
+substitution data in `ToString()`. That is PII, not secrets, and masking it means breaking
+debugging for the sake of a log nobody writes. Only records that provably contain a secret
+are masked.
