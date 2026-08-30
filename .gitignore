@@ -485,21 +485,22 @@ $RECYCLE.BIN/
 # SparkPoster
 # ========================================
 
-# Claude Code: локальные настройки и рабочие файлы агента
+# Claude Code: local settings and agent working files
 .claude/settings.local.json
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 .superpowers/
+CLAUDE.local.md
 
-# Локальные секреты. Интеграционные тесты читают ключ из переменной окружения
-# SPARKPOST_API_KEY; .env уже игнорируется выше, здесь — его локальные варианты
-# и файлы настроек, куда ключ утекает чаще всего.
+# Local secrets. Integration tests (when they exist) read the key from the
+# SPARKPOST_API_KEY environment variable; .env is already ignored above, these are
+# its local variants and the settings files the key leaks into most often.
 .env.*
 !.env.example
 appsettings.Local.json
 appsettings.local.json
 secrets.json
 
-# Покрытие: стоковые правила ловят coverage*.xml, но не каталог и не lcov
+# Coverage: the stock rules catch coverage*.xml but not the directory or lcov
 coverage/
 lcov.info
