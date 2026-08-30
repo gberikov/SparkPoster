@@ -25,3 +25,9 @@ updates:
         patterns: ["Microsoft.Extensions.*"]
       xunit:
         patterns: ["xunit*"]
+    ignore:
+      # The library targets net8.0 and stays on the 8.0.x Microsoft.Extensions line
+      # (see Directory.Packages.props): a major bump would force that line on every
+      # net8 consumer transitively. Patch and minor updates still come through.
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
