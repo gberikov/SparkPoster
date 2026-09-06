@@ -19,6 +19,10 @@ changes are breaking on the event model and are marked as such; the version stay
 
 ### Fixed
 
+- A malformed common event field no longer clears valid identifiers, timestamps or other
+  common fields in `UnknownSparkPostEvent`. Unreadable values remain available in `Raw`.
+- Unknown fields inside geolocation, parsed User-Agent and A/B test models are preserved in
+  each nested model's `Extra` dictionary instead of being discarded.
 - Every `open`, `click` and their AMP counterparts arrived as `UnknownSparkPostEvent`:
   `initial_pixel` is a boolean on the wire and was typed as a string. **Breaking:**
   `InitialPixel` is now `bool?`.

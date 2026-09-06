@@ -148,8 +148,8 @@ internal static class SparkPostEventReader
 
     /// <summary>
     /// The common fields are read through the base model so that EventId, Timestamp and the rest
-    /// stay available on an unknown event. When even that fails — a timestamp that is not a date,
-    /// say — the event is reported with its type alone and the payload in Raw.
+    /// stay available on an unknown event. If a common field is malformed, isolate it from the
+    /// other fields; the original value remains available in Raw.
     /// </summary>
     private static UnknownSparkPostEvent Unknown(JsonObject body, string category, string? parseError)
     {
@@ -162,6 +162,7 @@ internal static class SparkPostEventReader
         catch (JsonException exception)
         {
             parseError ??= exception.Message;
+            common = ReadValidCommonFields(body);
         }
 
         return (common ?? new UnknownSparkPostEvent { Type = ReadType(body) }) with
@@ -170,6 +171,35 @@ internal static class SparkPostEventReader
             Raw = body.DeepClone(),
             ParseError = parseError,
         };
+    }
+
+    private static UnknownSparkPostEvent ReadValidCommonFields(JsonObject body)
+    {
+        var validFields = new JsonObject();
+        var singleField = new JsonObject();
+        var typeInfo = SparkPostJsonContext.Default.UnknownSparkPostEvent;
+
+        // This slower path is only needed when the common model itself failed. Reuse its
+        // generated contract and property converters, including extension data, so new base
+        // properties automatically participate without reflection or a second field mapping.
+        foreach (var (name, value) in body)
+        {
+            singleField.Clear();
+            singleField.Add(name, value?.DeepClone());
+
+            try
+            {
+                _ = singleField.Deserialize(typeInfo);
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+
+            validFields.Add(name, value?.DeepClone());
+        }
+
+        return validFields.Deserialize(typeInfo)!;
     }
 
     /// <summary>
