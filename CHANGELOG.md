@@ -4,7 +4,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the version is below
 1.0, a minor bump may break the API.
 
-## [Unreleased]
+## [0.3.0] - 2026-09-06
 
 An external review against the official documentation and the full sample payloads. Several
 changes are breaking on the event model and are marked as such; the version stays below 1.0.
