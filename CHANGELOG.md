@@ -19,6 +19,12 @@ changes are breaking on the event model and are marked as such; the version stay
 
 ### Fixed
 
+- An unfamiliar `type` under a known webhook category, or a known `type` under the wrong
+  category (a `click` inside `message_event`, say), is reported as `UnknownSparkPostEvent`
+  instead of being forced into the category's model. Webhooks and the Events API now dispatch
+  through the same type table.
+- Display names in the `To`, `CC` and `BCC` headers escape `"` and `\`: `Jane "JJ" Doe` used
+  to produce an unquoted, invalid header.
 - A malformed common event field no longer clears valid identifiers, timestamps or other
   common fields in `UnknownSparkPostEvent`. Unreadable values remain available in `Raw`.
 - Unknown fields inside geolocation, parsed User-Agent and A/B test models are preserved in

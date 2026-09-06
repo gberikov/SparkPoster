@@ -65,7 +65,7 @@ internal static class SparkPostEventReader
         return events;
     }
 
-    private static SparkPostEvent ReadByType(JsonObject body)
+    private static SparkPostEvent ReadByType(JsonObject body, string category = "")
     {
         var type = ReadType(body);
 
@@ -73,24 +73,31 @@ internal static class SparkPostEventReader
         {
             "click" or "open" or "initial_open"
                 or "amp_click" or "amp_open" or "amp_initial_open"
-                => Deserialize(body, SparkPostJsonContext.Default.TrackEvent, string.Empty),
+                when category is "" or "track_event"
+                => Deserialize(body, SparkPostJsonContext.Default.TrackEvent, category),
             "generation_failure" or "generation_rejection"
-                => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent, string.Empty),
+                when category is "" or "gen_event"
+                => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent, category),
             "list_unsubscribe" or "link_unsubscribe"
-                => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent, string.Empty),
+                when category is "" or "unsubscribe_event"
+                => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent, category),
             "relay_injection" or "relay_rejection" or "relay_delivery"
                 or "relay_tempfail" or "relay_permfail"
-                => Deserialize(body, SparkPostJsonContext.Default.RelayEvent, string.Empty),
+                when category is "" or "relay_event"
+                => Deserialize(body, SparkPostJsonContext.Default.RelayEvent, category),
             "bounce" or "delivery" or "injection" or "delay" or "out_of_band"
                 or "policy_rejection" or "spam_complaint" or "sms_status"
-                => Deserialize(body, SparkPostJsonContext.Default.MessageEvent, string.Empty),
+                when category is "" or "message_event"
+                => Deserialize(body, SparkPostJsonContext.Default.MessageEvent, category),
             "ab_test_completed" or "ab_test_cancelled"
-                => Deserialize(body, SparkPostJsonContext.Default.AbTestEvent, string.Empty),
+                when category is "" or "ab_test_event"
+                => Deserialize(body, SparkPostJsonContext.Default.AbTestEvent, category),
             "success" or "error"
-                => Deserialize(body, SparkPostJsonContext.Default.IngestEvent, string.Empty),
+                when category is "" or "ingest_event"
+                => Deserialize(body, SparkPostJsonContext.Default.IngestEvent, category),
             // An unfamiliar type is reported as unknown rather than forced into MessageEvent:
             // the common fields are still read, and everything is available through Raw.
-            _ => Unknown(body, string.Empty, parseError: null),
+            _ => Unknown(body, category, parseError: null),
         };
     }
 
@@ -117,17 +124,7 @@ internal static class SparkPostEventReader
             throw new JsonException($"The '{category}' event body is not an object.");
         }
 
-        return category switch
-        {
-            "message_event" => Deserialize(body, SparkPostJsonContext.Default.MessageEvent, category),
-            "track_event" => Deserialize(body, SparkPostJsonContext.Default.TrackEvent, category),
-            "gen_event" => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent, category),
-            "unsubscribe_event" => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent, category),
-            "relay_event" => Deserialize(body, SparkPostJsonContext.Default.RelayEvent, category),
-            "ab_test_event" => Deserialize(body, SparkPostJsonContext.Default.AbTestEvent, category),
-            "ingest_event" => Deserialize(body, SparkPostJsonContext.Default.IngestEvent, category),
-            _ => Unknown(body, category, parseError: null),
-        };
+        return ReadByType(body, category);
     }
 
     private static SparkPostEvent Deserialize<T>(JsonObject body, JsonTypeInfo<T> typeInfo, string category)
