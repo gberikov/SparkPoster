@@ -63,22 +63,24 @@ internal sealed class EventsResource : IEvents
             return builder.ToString();
         }
 
-        builder.AddTimestamp("from", query.From);
-        builder.AddTimestamp("to", query.To);
+        builder.AddUtcTimestamp("from", query.From);
+        builder.AddUtcTimestamp("to", query.To);
 
-        // Timestamps are converted to UTC above, so the timezone is declared once for both.
-        if (query.From is not null || query.To is not null)
+        if (!string.IsNullOrEmpty(query.Delimiter))
         {
-            builder.Add("timezone", "UTC");
+            builder.ListDelimiter = query.Delimiter;
         }
 
         builder.AddList("events", query.Events);
+        builder.AddList("event_ids", query.EventIds);
         builder.AddList("recipients", query.Recipients);
         builder.AddList("from_addresses", query.FromAddresses);
         builder.AddList("campaigns", query.Campaigns);
         builder.AddList("templates", query.Templates);
-        builder.AddList("transmission_ids", query.TransmissionIds);
-        builder.AddList("message_ids", query.MessageIds);
+        // The wire names differ from the CLR ones: SparkPost ignores unknown query parameters,
+        // so a misspelt filter silently widens the search instead of failing.
+        builder.AddList("transmissions", query.TransmissionIds);
+        builder.AddList("messages", query.MessageIds);
         builder.AddList("bounce_classes", query.BounceClasses);
         builder.AddList("reasons", query.Reasons);
         builder.AddList("sending_ips", query.SendingIps);
@@ -90,6 +92,7 @@ internal sealed class EventsResource : IEvents
         builder.AddList("mailbox_providers", query.MailboxProviders);
         builder.AddList("mailbox_provider_regions", query.MailboxProviderRegions);
         builder.AddList("ab_tests", query.AbTests);
+        builder.AddList("ab_test_versions", query.AbTestVersions);
         builder.Add("delimiter", query.Delimiter);
         builder.Add("per_page", query.PerPage);
 

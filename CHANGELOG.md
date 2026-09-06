@@ -4,7 +4,81 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the version is below
 1.0, a minor bump may break the API.
 
-## [Unreleased]
+## [0.3.0] - 2026-09-06
+
+An external review against the official documentation and the full sample payloads. Several
+changes are breaking on the event model and are marked as such; the version stays below 1.0.
+
+### Security
+
+- `Transmissions.SendAsync` rejects an idempotency key outside `^[A-Za-z0-9._-]{1,255}$` before
+  building the request. The header went out through `TryAddWithoutValidation`, so a key built
+  from an unchecked business identifier could carry a CR/LF and inject a second header.
+- `SparkPostClient` refuses a plain `http://` base URL unless it points at a loopback address:
+  the API key travels in a header.
+
+### Fixed
+
+- An unfamiliar `type` under a known webhook category, or a known `type` under the wrong
+  category (a `click` inside `message_event`, say), is reported as `UnknownSparkPostEvent`
+  instead of being forced into the category's model. Webhooks and the Events API now dispatch
+  through the same type table.
+- Display names in the `To`, `CC` and `BCC` headers escape `"` and `\`: `Jane "JJ" Doe` used
+  to produce an unquoted, invalid header.
+- A malformed common event field no longer clears valid identifiers, timestamps or other
+  common fields in `UnknownSparkPostEvent`. Unreadable values remain available in `Raw`.
+- Unknown fields inside geolocation, parsed User-Agent and A/B test models are preserved in
+  each nested model's `Extra` dictionary instead of being discarded.
+- Every `open`, `click` and their AMP counterparts arrived as `UnknownSparkPostEvent`:
+  `initial_pixel` is a boolean on the wire and was typed as a string. **Breaking:**
+  `InitialPixel` is now `bool?`.
+- `EventQuery.TransmissionIds` and `MessageIds` went out as `transmission_ids` and
+  `message_ids`; SparkPost ignores unknown parameters, so the filter silently widened the search.
+  They are now `transmissions` and `messages`.
+- `EventQuery.From`/`To` dropped the seconds and sent a separate `timezone`; the documented
+  format is `YYYY-MM-DDTHH:MM:ssZ`. A ten-second window used to collapse into `from == to`.
+- `EventQuery.Delimiter` now joins the lists it declares; they were always joined with a comma.
+- `UnsubscribeEvent.MailFrom` reads `mailfrom`, the real wire name; it used to land in `Extra`.
+- `TemplateContent.From` accepts the string form SparkPost documents and stores; a template with
+  `"from": "{{ friendly_from }} <team@example.com>"` used to throw `JsonException`. An `Address`
+  with only `Email` set is written back as a string.
+- A non-string `type` in a webhook event threw `InvalidOperationException` and lost the rest of
+  the batch. A body without the `msys` wrapper used to parse as an empty batch and get a 200; it
+  now throws `JsonException`, which the endpoint answers with 400.
+- `TransmissionBuilder.Build()` copies the headers; without CC the request used to share the
+  builder's dictionary, so a `Header()` call after `Build()` changed a request already built.
+
+### Changed
+
+- **Breaking:** fields SparkPost sends for several categories moved to the `SparkPostEvent`
+  base: `BounceClass`, `ErrorCode`, `Reason`, `RawReason`, `NumRetries`, `RecipientDomain`,
+  `MailboxProvider`, `MailboxProviderRegion`, `SendingIp`, `IpAddress`, `RoutingDomain`,
+  `MsgSize`, `DelvMethod`, `InjectionTime`, `MsgFrom`. `InjectionTime` is now a `DateTimeOffset?`.
+  Newly typed on the base: `CustomerId`, `RcptHash`, `AbTestId`, `AbTestVersion`, `SendingDomain`,
+  `RecvMethod`, `ScheduledTime`, `QueueTime`, `RemoteAddr`, `OutboundTls`, `OpenTracking`,
+  `ClickTracking`, `InitialPixel`, `AmpEnabled`.
+- **Breaking:** `TrackEvent.GeoIp` is a typed `GeoLocation`; `UserAgentParsed` is a typed
+  `UserAgentInfo`. Coordinates and postal codes are read whether they arrive as numbers or strings.
+- **Breaking:** `UnknownSparkPostEvent` reports the reason in `ParseError` instead of
+  `Extra["sparkposter_parse_error"]`, and now carries the common fields (`EventId`, `Timestamp`,
+  `MessageId`, ...) whenever the payload allows, so deduplication works for it too.
+- **Breaking:** `IWebhooks.GetEventSamplesAsync` returns `IReadOnlyList<SparkPostEvent>` rather
+  than a `JsonNode`; the samples come in the exact shape of a batch.
+- `Templates.UpdateAsync` documents that `content` replaces the stored content as a whole.
+
+### Added
+
+- `AbTestEvent` (`ab_test_completed`, `ab_test_cancelled`) and `IngestEvent` (`success`,
+  `error`) with their typed payloads; `sms_status` maps to `MessageEvent` from the Events API as
+  it already did from webhooks. `SparkPostEventTypes.SmsStatus`, `IngestSuccess`, `IngestError`.
+- `EventQuery.EventIds` and `AbTestVersions`.
+- `Template.LastUse` and `SubaccountId`; `SparkPostError.Part` and `Line` for template errors.
+- `TransmissionBuilder.SubstitutionData(JsonNode)` and `Metadata(JsonNode)`: no reflection, no
+  serializer context.
+- The full official sample payloads (27 webhook events, 18 Events API events) as test fixtures;
+  every one has to parse into its typed model.
+- README: which retries are safe and how to scope the resilience handler; handling unknown
+  events; Native AOT substitution data.
 
 ## [0.2.0] - 2026-08-29
 
