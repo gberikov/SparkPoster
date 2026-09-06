@@ -15,7 +15,10 @@ public static class SparkPostServiceCollectionExtensions
     /// <returns>
     /// The HTTP client builder — attach retries and timeouts to it, for example
     /// <c>.AddStandardResilienceHandler()</c> from <c>Microsoft.Extensions.Http.Resilience</c>.
-    /// Retries are safe: the client stamps an <c>Idempotency-Key</c> header on every send.
+    /// Retrying a send is safe: the client stamps an <c>Idempotency-Key</c> header on every
+    /// transmission. Other creating calls — a webhook, a template, a sending domain — carry no
+    /// such key, so a retry after a lost response may create the resource twice; see the README
+    /// for how to scope the retry policy.
     /// </returns>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="services"/> or <paramref name="configure"/> is <c>null</c>.
