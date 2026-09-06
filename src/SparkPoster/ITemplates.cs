@@ -46,7 +46,12 @@ public interface ITemplates
 
     /// <summary>Updates a template.</summary>
     /// <param name="id">The template identifier.</param>
-    /// <param name="definition">The new values.</param>
+    /// <param name="definition">
+    /// The new values. <see cref="TemplateRequest.Content"/>, when given, <b>replaces</b> the
+    /// stored content as a whole rather than patching individual fields: send every field you
+    /// want to keep, or leave <c>Content</c> <c>null</c> to touch only name, description and
+    /// options.
+    /// </param>
     /// <param name="updatePublished">
     /// <c>true</c> to edit the published version directly, leaving the draft alone.
     /// By default the draft is updated.
