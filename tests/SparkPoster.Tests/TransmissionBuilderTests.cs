@@ -4,6 +4,27 @@ namespace SparkPoster.Tests;
 
 public sealed class TransmissionBuilderTests
 {
+    [Theory]
+    [InlineData("Jane \"JJ\" Doe", "Jane \\\"JJ\\\" Doe")]
+    [InlineData("Jane\\Doe", "Jane\\\\Doe")]
+    [InlineData("Jane\\\"Doe", "Jane\\\\\\\"Doe")]
+    public void Copy_headers_escape_display_names(string name, string escapedName)
+    {
+        var request = Transmission.Create()
+            .From("sender@example.com")
+            .To("to@example.com", name)
+            .Cc("cc@example.com", name)
+            .Bcc("bcc@example.com", name)
+            .Text("hi")
+            .Build();
+
+        Assert.Equal($"\"{escapedName}\" <cc@example.com>", request.Content.Headers!["CC"]);
+        var copies = request.Recipients.Items!.Skip(1).ToArray();
+        Assert.Equal(2, copies.Length);
+        Assert.All(copies, recipient =>
+            Assert.Equal($"\"{escapedName}\" <to@example.com>", recipient.Address.HeaderTo));
+    }
+
     [Fact]
     public void Build_throws_without_sender()
     {

@@ -499,8 +499,19 @@ public sealed class TransmissionBuilder
         };
     }
 
-    private static string FormatAddress(Address address) =>
-        string.IsNullOrEmpty(address.Name) ? address.Email : $"\"{address.Name}\" <{address.Email}>";
+    private static string FormatAddress(Address address)
+    {
+        if (string.IsNullOrEmpty(address.Name))
+        {
+            return address.Email;
+        }
+
+        var escapedName = address.Name
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+
+        return $"\"{escapedName}\" <{address.Email}>";
+    }
 
     private RecipientSet BuildRecipients()
     {

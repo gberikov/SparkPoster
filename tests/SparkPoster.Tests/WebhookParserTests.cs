@@ -4,6 +4,37 @@ namespace SparkPoster.Tests;
 
 public sealed class WebhookParserTests
 {
+    [Theory]
+    [InlineData("message_event", "future_event")]
+    [InlineData("track_event", "future_event")]
+    [InlineData("gen_event", "future_event")]
+    [InlineData("unsubscribe_event", "future_event")]
+    [InlineData("relay_event", "future_event")]
+    [InlineData("ab_test_event", "future_event")]
+    [InlineData("ingest_event", "future_event")]
+    [InlineData("future_category", "delivery")]
+    [InlineData("message_event", "click")]
+    public void Unknown_category_or_type_preserves_the_payload_and_the_rest_of_the_batch(string category, string type)
+    {
+        var events = SparkPostWebhookParser.Parse($$$$$"""
+            [
+              {"msys":{"{{{{{category}}}}}":{"type":"{{{{{type}}}}}","event_id":"new1","timestamp":"1460989507","payload":{"value":42}}}},
+              {"msys":{"message_event":{"type":"delivery","event_id":"good"}}}
+            ]
+            """);
+
+        Assert.Equal(2, events.Count);
+        var unknown = Assert.IsType<UnknownSparkPostEvent>(events[0]);
+        Assert.Equal(category, unknown.Category);
+        Assert.Equal(type, unknown.Type);
+        Assert.Equal("new1", unknown.EventId);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1460989507), unknown.Timestamp);
+        Assert.Equal(42, (int?)unknown.Raw!["payload"]!["value"]);
+        Assert.Equal(42, unknown.Extra!["payload"].GetProperty("value").GetInt32());
+        Assert.Null(unknown.ParseError);
+        Assert.Equal("good", Assert.IsType<MessageEvent>(events[1]).EventId);
+    }
+
     /// <summary>A bounce: the SparkPost documentation example, trimmed to the fields that matter.</summary>
     private const string BounceBatch = """
         [{"msys":{"message_event":{
