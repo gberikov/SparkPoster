@@ -242,6 +242,10 @@ public sealed record TrackEvent : SparkPostEvent
 /// <summary>Geolocation of the host an engagement request came from.</summary>
 public sealed record GeoLocation
 {
+    /// <summary>Additional geolocation fields supplied by SparkPost.</summary>
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? Extra { get; set; }
+
     /// <summary>The country code.</summary>
     public string? Country { get; init; }
 
@@ -269,6 +273,10 @@ public sealed record GeoLocation
 /// <summary>A User-Agent string broken down by SparkPost.</summary>
 public sealed record UserAgentInfo
 {
+    /// <summary>Additional parsed User-Agent fields supplied by SparkPost.</summary>
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? Extra { get; set; }
+
     /// <summary>The browser engine family.</summary>
     public string? AgentFamily { get; init; }
 
@@ -362,6 +370,10 @@ public sealed record AbTestEvent : SparkPostEvent
 /// <summary>An A/B test as reported in an <see cref="AbTestEvent"/>.</summary>
 public sealed record AbTestSummary
 {
+    /// <summary>Additional A/B test fields supplied by SparkPost.</summary>
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? Extra { get; set; }
+
     /// <summary>The test identifier.</summary>
     public string? Id { get; init; }
 
@@ -390,6 +402,10 @@ public sealed record AbTestSummary
 /// <summary>The numbers of one template in an A/B test.</summary>
 public sealed record AbTestTemplateResult
 {
+    /// <summary>Additional template result fields supplied by SparkPost.</summary>
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? Extra { get; set; }
+
     /// <summary>The template identifier.</summary>
     public string? TemplateId { get; init; }
 
