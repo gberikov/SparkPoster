@@ -347,6 +347,18 @@ public sealed class TransmissionBuilder
     }
 
     /// <summary>
+    /// Sets transmission-level substitution data from a JSON tree. No reflection: works in
+    /// trimmed and AOT builds, and needs no serializer context for a handful of values.
+    /// </summary>
+    /// <param name="value">The data, for example <c>new JsonObject { ["name"] = "Wilma" }</c>.</param>
+    /// <returns>The same builder.</returns>
+    public TransmissionBuilder SubstitutionData(JsonNode? value)
+    {
+        _substitutionData = value;
+        return this;
+    }
+
+    /// <summary>
     /// Sets transmission-level metadata from an arbitrary object.
     /// </summary>
     /// <param name="value">The metadata.</param>
@@ -374,6 +386,18 @@ public sealed class TransmissionBuilder
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
         _metadata = JsonSerializer.SerializeToNode(value, typeInfo);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets transmission-level metadata from a JSON tree. No reflection: works in trimmed and
+    /// AOT builds, and needs no serializer context for a handful of values.
+    /// </summary>
+    /// <param name="value">The metadata, for example <c>new JsonObject { ["plan"] = "pro" }</c>.</param>
+    /// <returns>The same builder.</returns>
+    public TransmissionBuilder Metadata(JsonNode? value)
+    {
+        _metadata = value;
         return this;
     }
 
@@ -444,6 +468,14 @@ public sealed class TransmissionBuilder
 
     /// <summary>Assembles the request.</summary>
     /// <returns>The finished send request.</returns>
+    /// <remarks>
+    /// The request holds copies of the builder's collections — recipients, attachments, inline
+    /// images, headers — so further builder calls do not change a request that was already built.
+    /// Substitution data and metadata are the exception: they are <see cref="JsonNode"/> trees
+    /// shared by reference, since copying a large tree on every <c>Build()</c> is not free.
+    /// Setting them again on the builder replaces the tree rather than mutating it, so the
+    /// sharing only matters if you mutate the node you passed in yourself.
+    /// </remarks>
     /// <exception cref="InvalidOperationException">
     /// Recipients or content are missing, or content was given in more than one form.
     /// </exception>
@@ -548,11 +580,13 @@ public sealed class TransmissionBuilder
             throw new InvalidOperationException("No sender was given: call From().");
         }
 
-        var headers = _headers;
+        // A copy, not the builder's own dictionary: a Header() call after Build() must not
+        // reach into a request that was already assembled — or queued.
+        var headers = _headers is null ? null : new Dictionary<string, string>(_headers);
 
         if (_cc.Count > 0)
         {
-            headers = headers is null ? [] : new Dictionary<string, string>(headers);
+            headers ??= [];
             headers["CC"] = string.Join(", ", _cc.Select(FormatAddress));
         }
 
