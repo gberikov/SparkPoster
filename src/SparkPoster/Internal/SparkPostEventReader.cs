@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
 using SparkPoster.Webhooks;
 
 namespace SparkPoster.Internal;
@@ -66,7 +67,7 @@ internal static class SparkPostEventReader
 
     private static SparkPostEvent ReadByType(JsonObject body)
     {
-        var type = (string?)body["type"];
+        var type = ReadType(body);
 
         return type switch
         {
@@ -81,28 +82,30 @@ internal static class SparkPostEventReader
                 or "relay_tempfail" or "relay_permfail"
                 => Deserialize(body, SparkPostJsonContext.Default.RelayEvent, string.Empty),
             "bounce" or "delivery" or "injection" or "delay" or "out_of_band"
-                or "policy_rejection" or "spam_complaint"
+                or "policy_rejection" or "spam_complaint" or "sms_status"
                 => Deserialize(body, SparkPostJsonContext.Default.MessageEvent, string.Empty),
+            "ab_test_completed" or "ab_test_cancelled"
+                => Deserialize(body, SparkPostJsonContext.Default.AbTestEvent, string.Empty),
+            "success" or "error"
+                => Deserialize(body, SparkPostJsonContext.Default.IngestEvent, string.Empty),
             // An unfamiliar type is reported as unknown rather than forced into MessageEvent:
-            // the caller can still read everything through Raw and Extra.
-            _ => new UnknownSparkPostEvent
-            {
-                Category = string.Empty,
-                Type = type,
-                Raw = body.DeepClone(),
-            },
+            // the common fields are still read, and everything is available through Raw.
+            _ => Unknown(body, string.Empty, parseError: null),
         };
     }
 
     private static SparkPostEvent? ReadOne(JsonNode? item)
     {
-        if (item is not JsonObject wrapper)
+        // Anything that is not {"msys": {...}} is not a SparkPost event at all. Surfacing that as a
+        // JsonException (→ 400 from the endpoint) beats silently answering 200 to a body that would
+        // never have carried an event.
+        if (item is not JsonObject wrapper || wrapper[Envelope] is not JsonObject envelope)
         {
-            return null;
+            throw new JsonException($"A batch element is not a SparkPost event: it has no '{Envelope}' wrapper.");
         }
 
         // The validation batch arrives as [{"msys":{}}] and carries no events.
-        if (wrapper[Envelope] is not JsonObject envelope || envelope.Count == 0)
+        if (envelope.Count == 0)
         {
             return null;
         }
@@ -111,7 +114,7 @@ internal static class SparkPostEventReader
 
         if (payload is not JsonObject body)
         {
-            return null;
+            throw new JsonException($"The '{category}' event body is not an object.");
         }
 
         return category switch
@@ -121,19 +124,13 @@ internal static class SparkPostEventReader
             "gen_event" => Deserialize(body, SparkPostJsonContext.Default.GenerationEvent, category),
             "unsubscribe_event" => Deserialize(body, SparkPostJsonContext.Default.UnsubscribeEvent, category),
             "relay_event" => Deserialize(body, SparkPostJsonContext.Default.RelayEvent, category),
-            _ => new UnknownSparkPostEvent
-            {
-                Category = category,
-                Type = (string?)body["type"],
-                Raw = body.DeepClone(),
-            },
+            "ab_test_event" => Deserialize(body, SparkPostJsonContext.Default.AbTestEvent, category),
+            "ingest_event" => Deserialize(body, SparkPostJsonContext.Default.IngestEvent, category),
+            _ => Unknown(body, category, parseError: null),
         };
     }
 
-    private static SparkPostEvent Deserialize<T>(
-        JsonObject body,
-        System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
-        string category)
+    private static SparkPostEvent Deserialize<T>(JsonObject body, JsonTypeInfo<T> typeInfo, string category)
         where T : SparkPostEvent
     {
         try
@@ -145,16 +142,40 @@ internal static class SparkPostEventReader
         {
             // One unparsable event must not take down the whole batch: SparkPost would resend
             // it in full, together with the events that were already handled.
-            return new UnknownSparkPostEvent
-            {
-                Category = category,
-                Type = (string?)body["type"],
-                Raw = body.DeepClone(),
-                Extra = new Dictionary<string, JsonElement>
-                {
-                    ["sparkposter_parse_error"] = JsonSerializer.SerializeToElement(exception.Message, SparkPostJsonContext.Default.String),
-                },
-            };
+            return Unknown(body, category, exception.Message);
         }
     }
+
+    /// <summary>
+    /// The common fields are read through the base model so that EventId, Timestamp and the rest
+    /// stay available on an unknown event. When even that fails — a timestamp that is not a date,
+    /// say — the event is reported with its type alone and the payload in Raw.
+    /// </summary>
+    private static UnknownSparkPostEvent Unknown(JsonObject body, string category, string? parseError)
+    {
+        UnknownSparkPostEvent? common = null;
+
+        try
+        {
+            common = body.Deserialize(SparkPostJsonContext.Default.UnknownSparkPostEvent);
+        }
+        catch (JsonException exception)
+        {
+            parseError ??= exception.Message;
+        }
+
+        return (common ?? new UnknownSparkPostEvent { Type = ReadType(body) }) with
+        {
+            Category = category,
+            Raw = body.DeepClone(),
+            ParseError = parseError,
+        };
+    }
+
+    /// <summary>
+    /// The discriminator without an <see cref="InvalidOperationException"/>: a cast of a number
+    /// or an object to string throws, and that exception is not the one the fallback catches.
+    /// </summary>
+    private static string? ReadType(JsonObject body) =>
+        body["type"] is JsonValue value && value.TryGetValue<string>(out var type) ? type : null;
 }

@@ -54,10 +54,9 @@ public sealed class WebhookParserTests
         Assert.Equal(SparkPostEventTypes.Bounce, unknown.Type);
         Assert.Equal("message_event", unknown.Category);
         Assert.NotNull(unknown.Raw);
-        Assert.Contains("sparkposter_parse_error", unknown.Extra!);
         Assert.Contains(
             "not Unix seconds within the range of a date nor ISO 8601",
-            unknown.Extra!["sparkposter_parse_error"].GetString()!,
+            unknown.ParseError,
             StringComparison.Ordinal);
     }
 
@@ -92,10 +91,9 @@ public sealed class WebhookParserTests
 
         var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
 
-        Assert.Contains("sparkposter_parse_error", unknown.Extra!);
         Assert.Contains(
             "not Unix seconds within the range of a date nor ISO 8601",
-            unknown.Extra!["sparkposter_parse_error"].GetString()!,
+            unknown.ParseError,
             StringComparison.Ordinal);
     }
 
@@ -118,7 +116,7 @@ public sealed class WebhookParserTests
 
         var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
 
-        Assert.Contains("sparkposter_parse_error", unknown.Extra!);
+        Assert.NotNull(unknown.ParseError);
     }
 
     [Fact]
@@ -135,7 +133,144 @@ public sealed class WebhookParserTests
         var click = Assert.IsType<TrackEvent>(events.Single());
 
         Assert.Equal("http://example.com/deals", click.TargetLinkUrl);
-        Assert.Equal("US", (string?)click.GeoIp!["country"]);
+        Assert.Equal("US", click.GeoIp!.Country);
+    }
+
+    [Fact]
+    public void Boolean_initial_pixel_does_not_turn_an_open_into_unknown()
+    {
+        // The official samples carry initial_pixel as a boolean. A string property here used to
+        // fail the whole event, so every open and click arrived as UnknownSparkPostEvent.
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"track_event":{"type":"open","event_id":"event1","timestamp":"1460989507","initial_pixel":true}}}]""");
+
+        var open = Assert.IsType<TrackEvent>(events.Single());
+
+        Assert.True(open.InitialPixel);
+        Assert.Equal("event1", open.EventId);
+    }
+
+    [Fact]
+    public void Geo_ip_accepts_coordinates_as_numbers_and_as_strings()
+    {
+        // Webhooks send numbers, the Events API sends strings — for the same field.
+        var events = SparkPostWebhookParser.Parse(
+            """
+            [
+              {"msys":{"track_event":{"type":"click","geo_ip":{"latitude":39.1749,"longitude":-76.8375,"zip":21046}}}},
+              {"msys":{"track_event":{"type":"click","geo_ip":{"latitude":"39.1749","longitude":"-76.8375","zip":"21046"}}}}
+            ]
+            """);
+
+        Assert.All(events, e =>
+        {
+            var geo = Assert.IsType<TrackEvent>(e).GeoIp!;
+            Assert.Equal(39.1749, geo.Latitude);
+            Assert.Equal(-76.8375, geo.Longitude);
+            Assert.Equal("21046", geo.Zip);
+        });
+    }
+
+    [Fact]
+    public void Unsubscribe_mailfrom_is_read_from_its_real_wire_name()
+    {
+        // SparkPost spells it "mailfrom", not the snake_case "mail_from".
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"unsubscribe_event":{"type":"list_unsubscribe","mailfrom":"recipient@example.com"}}}]""");
+
+        var unsubscribe = Assert.IsType<UnsubscribeEvent>(events.Single());
+
+        Assert.Equal("recipient@example.com", unsubscribe.MailFrom);
+        Assert.Null(unsubscribe.Extra);
+    }
+
+    [Fact]
+    public void Ab_test_and_ingest_categories_have_their_own_types()
+    {
+        var events = SparkPostWebhookParser.Parse(
+            """
+            [
+              {"msys":{"ab_test_event":{"type":"ab_test_completed","event_id":"a1","ab_test":{"id":"password-reset","version":1,"winning_template_id":"templ-1234","variants":[{"template_id":"templ-5678","engagement_rate":0.2}]}}}},
+              {"msys":{"ingest_event":{"type":"error","event_id":"i1","batch_id":"b1","number_failed":50,"retryable":false}}}
+            ]
+            """);
+
+        Assert.Collection(
+            events,
+            e =>
+            {
+                var abTest = Assert.IsType<AbTestEvent>(e);
+                Assert.Equal(SparkPostEventTypes.AbTestCompleted, abTest.Type);
+                Assert.Equal("templ-1234", abTest.AbTest!.WinningTemplateId);
+                Assert.Equal(0.2, abTest.AbTest.Variants!.Single().EngagementRate);
+            },
+            e =>
+            {
+                var ingest = Assert.IsType<IngestEvent>(e);
+                Assert.Equal(SparkPostEventTypes.IngestError, ingest.Type);
+                Assert.Equal("b1", ingest.BatchId);
+                Assert.Equal(50, ingest.NumberFailed);
+                Assert.False(ingest.Retryable);
+            });
+    }
+
+    [Fact]
+    public void Unknown_event_keeps_the_common_fields()
+    {
+        // Deduplication on EventId has to work for an event nobody has typed yet.
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"quantum_event":{"type":"teleported","event_id":"q1","timestamp":"1460989507","message_id":"m1","rcpt_to":"a@example.com","payload":42}}}]""");
+
+        var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
+
+        Assert.Equal("q1", unknown.EventId);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1460989507), unknown.Timestamp);
+        Assert.Equal("m1", unknown.MessageId);
+        Assert.Equal("a@example.com", unknown.RcptTo);
+        Assert.Equal(42, unknown.Extra!["payload"].GetInt32());
+        Assert.Null(unknown.ParseError);
+    }
+
+    [Fact]
+    public void Bad_specialized_field_keeps_the_common_fields_and_reports_why()
+    {
+        // ab_test is an object; a number there fails the typed model but not the base one.
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"ab_test_event":{"type":"ab_test_completed","event_id":"a1","timestamp":"1460989507","ab_test":7}}}]""");
+
+        var unknown = Assert.IsType<UnknownSparkPostEvent>(events.Single());
+
+        Assert.Equal("ab_test_event", unknown.Category);
+        Assert.Equal("a1", unknown.EventId);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1460989507), unknown.Timestamp);
+        Assert.NotNull(unknown.ParseError);
+        Assert.Equal(7, (int?)unknown.Raw!["ab_test"]);
+    }
+
+    [Fact]
+    public void Non_string_type_does_not_break_the_batch()
+    {
+        // A cast of a number to string on a JsonNode throws InvalidOperationException, which is
+        // not the exception the per-event fallback catches — the neighbour was lost with it.
+        var events = SparkPostWebhookParser.Parse(
+            """[{"msys":{"message_event":{"type":42}}},{"msys":{"message_event":{"type":"delivery","event_id":"good"}}}]""");
+
+        Assert.Collection(
+            events,
+            e => Assert.Equal("42", e.Type),
+            e => Assert.Equal("good", Assert.IsType<MessageEvent>(e).EventId));
+    }
+
+    [Theory]
+    [InlineData("""{"unexpected":true}""")]
+    [InlineData("""[{"unexpected":true}]""")]
+    [InlineData("""[42]""")]
+    [InlineData("""[{"msys":{"message_event":"not an object"}}]""")]
+    public void Body_that_is_not_a_sparkpost_batch_is_rejected(string json)
+    {
+        // Silently answering "no events" to a body that never could have carried one hides a
+        // misrouted request. A JsonException becomes a 400 at the endpoint.
+        Assert.Throws<System.Text.Json.JsonException>(() => SparkPostWebhookParser.Parse(json));
     }
 
     [Fact]
