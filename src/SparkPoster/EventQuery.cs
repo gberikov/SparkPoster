@@ -33,6 +33,9 @@ public sealed record EventQuery
     /// <summary>The event types to return. All of them when omitted.</summary>
     public IReadOnlyList<string>? Events { get; init; }
 
+    /// <summary>Event identifiers.</summary>
+    public IReadOnlyList<string>? EventIds { get; init; }
+
     /// <summary>Recipient addresses.</summary>
     public IReadOnlyList<string>? Recipients { get; init; }
 
@@ -88,10 +91,17 @@ public sealed record EventQuery
     /// <summary>A/B tests.</summary>
     public IReadOnlyList<string>? AbTests { get; init; }
 
+    /// <summary>A/B test version numbers. SparkPost requires <see cref="AbTests"/> alongside.</summary>
+    public IReadOnlyList<string>? AbTestVersions { get; init; }
+
     /// <summary>How many events to return per page. The maximum is 10,000.</summary>
     public int? PerPage { get; init; }
 
-    /// <summary>The separator used inside list parameters. A comma by default.</summary>
+    /// <summary>
+    /// The separator used inside list parameters, both when joining the lists above and as the
+    /// <c>delimiter</c> parameter that tells SparkPost how to split them. A comma by default.
+    /// Useful when a filter value itself contains a comma, such as a subject line.
+    /// </summary>
     public string? Delimiter { get; init; }
 
     /// <summary>

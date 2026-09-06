@@ -90,11 +90,78 @@ public sealed class EventsTests
 
         var query = handler.LastRequest!.RequestUri!.Query;
 
-        Assert.Contains("from=2026-08-01T06%3A00", query, StringComparison.Ordinal);
-        Assert.Contains("timezone=UTC", query, StringComparison.Ordinal);
+        // The documented format is YYYY-MM-DDTHH:MM:ssZ in UTC; the offset above is +06:00.
+        Assert.Contains("from=2026-08-01T06%3A00%3A00Z", query, StringComparison.Ordinal);
+        Assert.DoesNotContain("timezone", query, StringComparison.Ordinal);
         Assert.Contains("events=bounce%2Cdelivery", query, StringComparison.Ordinal);
         Assert.Contains("campaigns=blackfriday", query, StringComparison.Ordinal);
         Assert.Contains("per_page=500", query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Time_range_keeps_its_seconds()
+    {
+        // A minute-precision format collapsed a ten-second window into from == to.
+        var (client, handler) = CreateClient(SinglePage);
+
+        await client.Events.GetPageAsync(
+            new EventQuery
+            {
+                From = new DateTimeOffset(2026, 9, 6, 10, 0, 45, TimeSpan.Zero),
+                To = new DateTimeOffset(2026, 9, 6, 10, 0, 55, TimeSpan.Zero),
+            },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var query = handler.LastRequest!.RequestUri!.Query;
+
+        Assert.Contains("from=2026-09-06T10%3A00%3A45Z", query, StringComparison.Ordinal);
+        Assert.Contains("to=2026-09-06T10%3A00%3A55Z", query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Transmission_and_message_filters_use_the_documented_wire_names()
+    {
+        // SparkPost ignores unknown query parameters, so "transmission_ids" silently returned
+        // every event instead of the ones asked for.
+        var (client, handler) = CreateClient(SinglePage);
+
+        await client.Events.GetPageAsync(
+            new EventQuery
+            {
+                TransmissionIds = ["t1", "t2"],
+                MessageIds = ["m1"],
+                EventIds = ["e1"],
+                AbTests = ["ab"],
+                AbTestVersions = ["1", "2"],
+            },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var query = handler.LastRequest!.RequestUri!.Query;
+
+        Assert.Contains("&transmissions=t1%2Ct2", query, StringComparison.Ordinal);
+        Assert.Contains("&messages=m1", query, StringComparison.Ordinal);
+        Assert.Contains("&event_ids=e1", query, StringComparison.Ordinal);
+        Assert.Contains("&ab_test_versions=1%2C2", query, StringComparison.Ordinal);
+        Assert.DoesNotContain("transmission_ids", query, StringComparison.Ordinal);
+        Assert.DoesNotContain("message_ids", query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Custom_delimiter_joins_the_lists_it_announces()
+    {
+        // Declaring delimiter=| while still joining with a comma made SparkPost read
+        // "one,two" as a single campaign name.
+        var (client, handler) = CreateClient(SinglePage);
+
+        await client.Events.GetPageAsync(
+            new EventQuery { Delimiter = "|", Campaigns = ["one", "two"], Subjects = ["Hi, there"] },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var query = handler.LastRequest!.RequestUri!.Query;
+
+        Assert.Contains("campaigns=one%7Ctwo", query, StringComparison.Ordinal);
+        Assert.Contains("subjects=Hi%2C%20there", query, StringComparison.Ordinal);
+        Assert.Contains("delimiter=%7C", query, StringComparison.Ordinal);
     }
 
     [Fact]
