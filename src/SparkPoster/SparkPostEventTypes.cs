@@ -32,6 +32,9 @@ public static class SparkPostEventTypes
     /// <summary>A spam complaint.</summary>
     public const string SpamComplaint = "spam_complaint";
 
+    /// <summary>A delivery status report for an SMS message.</summary>
+    public const string SmsStatus = "sms_status";
+
     /// <summary>The message was opened.</summary>
     public const string Open = "open";
 
@@ -82,4 +85,10 @@ public static class SparkPostEventTypes
 
     /// <summary>An A/B test was cancelled.</summary>
     public const string AbTestCancelled = "ab_test_cancelled";
+
+    /// <summary>An ingest batch was accepted. Only for accounts with the Ingest API.</summary>
+    public const string IngestSuccess = "success";
+
+    /// <summary>An ingest batch was rejected, in full or in part. Only for accounts with the Ingest API.</summary>
+    public const string IngestError = "error";
 }

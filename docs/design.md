@@ -150,8 +150,8 @@ Closed:
 
 Still to verify against a live account:
 
-- The full list of fields per event category — take it from `GET /webhooks/events/documentation`
-  and `GET /webhooks/events/samples`; only what is actually used is typed, the rest lands in `Extra`.
+- The full list of fields per event category — closed by the review before 0.3.0 (§9): every
+  official sample is a fixture, and everything in them is typed except the SMS fields of `sms_status`.
 - The behaviour of 409 with codes `1600` (same key, different body — caller's error) and
   `1601` (request still in flight — retryable).
 
@@ -201,3 +201,33 @@ not a new decision.
 substitution data in `ToString()`. That is PII, not secrets, and masking it means breaking
 debugging for the sake of a log nobody writes. Only records that provably contain a secret
 are masked.
+
+## 9. Review before 0.3.0
+
+An external review against the official documentation and the full sample payloads. Two
+findings are contract errors that no hand-trimmed fixture could have caught, which is why the
+full samples are now checked in.
+
+| What | Why |
+|------|-----|
+| `Idempotency-Key` is validated against `^[A-Za-z0-9._-]{1,255}$` | It went out through `TryAddWithoutValidation`; a key built from an unchecked business identifier with a CR/LF in it produced a second header on the wire. Decision #8 (no mirror of server rules) yields to §2: this is a trust boundary, not a validation rule |
+| `initial_pixel` is `bool?` and lives on the base event | It was `string?` on `TrackEvent`; the samples carry a boolean, so every `open` and `click` was an `UnknownSparkPostEvent`. The trimmed test fixture had left the field out |
+| Events filters `transmissions` / `messages` | We sent `transmission_ids` / `message_ids`; SparkPost ignores unknown query parameters, so the filter silently widened the search |
+| Events `from`/`to` are `YYYY-MM-DDTHH:MM:ssZ`, no `timezone` | The minute-precision format with a separate `timezone` belonged to the deprecated `message-events` endpoint; on `events/message` it dropped the seconds, collapsing a ten-second window into `from == to` |
+| Shared fields on `SparkPostEvent`; `AbTestEvent`, `IngestEvent`; typed `GeoIp` and `UserAgentParsed` | The same field was typed on one category and in `Extra` on another; `ab_test_event` and `ingest_event` were unknown although their types had constants; `sms_status` was a `MessageEvent` from webhooks and unknown from the Events API. Rule: every official sample parses into its typed model, verified by `OfficialSamplesTests` |
+| `UnknownSparkPostEvent` keeps the common fields and has `ParseError` | The fallback filled only `Type`, `Category` and `Raw`; deduplication on `EventId` broke for exactly the events nobody had typed yet, and the reason hid in `Extra["sparkposter_parse_error"]` |
+| `UnsubscribeEvent.MailFrom` reads `mailfrom` | The naming policy produced `mail_from`; the value landed in `Extra` |
+| `TemplateContent.From` accepts a string | The Template Object documents `from` as string or object; a string with a template expression threw `JsonException`. It is kept verbatim in `Email` and written back as a string |
+| A batch element without `msys` throws `JsonException` (→ 400) | `{"unexpected":true}` used to parse as an empty batch and get a 200. The validation batch `[{"msys":{}}]` still yields no events; an unknown category still never throws |
+| `type` is read without a cast | `(string?)body["type"]` on a number threw `InvalidOperationException`, which the per-event fallback does not catch — the neighbours in the batch were lost with it |
+| `EventQuery.Delimiter` joins the lists it announces | Lists were always joined with a comma while `delimiter=\|` was declared |
+| `Build()` copies the headers | Without CC the request held the builder's own dictionary; a `Header()` call after `Build()` changed a request already on a queue. What is and is not copied is now in the XML doc |
+| `BaseUrl` must be `https://` or loopback | The key is a header; plain HTTP to a non-loopback host sends it in clear text. An explicit exception for loopback beats a flag that gets set once and forgotten |
+| `JsonNode` overloads for substitution data and metadata | The README's first example used the reflection overload; an AOT consumer had only the `JsonTypeInfo<T>` path, which is heavy for a handful of values |
+| README: retries are scoped | "Retries are safe" was true for transmissions only; a standard handler retries every method, and a webhook or template creation has no key |
+| `GetEventSamplesAsync` returns typed events | The samples come in the exact shape of a batch, so the parser already understood them. `GetEventsDocumentationAsync` stays raw: a reference whose shape changes with the API |
+
+**Deliberately not done:** `GET`/`DELETE /transmissions/{id}` — SparkPost has deprecated both in
+favour of delete-by-campaign; ingest event search, DKIM key management and the remaining
+sections — backlog per §6; `ResponseHeadersRead` and a `Utf8JsonReader` fast path for events —
+without a measurement there is nothing to optimize against.

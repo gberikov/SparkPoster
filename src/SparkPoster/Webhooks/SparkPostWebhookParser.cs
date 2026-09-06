@@ -27,8 +27,18 @@ public static class SparkPostWebhookParser
     /// <summary>Parses a batch from a string.</summary>
     /// <param name="json">The request body.</param>
     /// <returns>The events of the batch.</returns>
+    /// <remarks>
+    /// Three cases are told apart. The validation batch <c>[{"msys":{}}]</c> yields an empty
+    /// list. An event of a category or type this library does not know, or one whose body does
+    /// not fit its typed model, becomes an <see cref="UnknownSparkPostEvent"/> and never throws.
+    /// A body that is not a SparkPost batch at all — an element without the <c>msys</c>
+    /// wrapper — throws <see cref="System.Text.Json.JsonException"/>, which the ASP.NET Core
+    /// endpoint answers with 400.
+    /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="json"/> is <c>null</c>.</exception>
-    /// <exception cref="System.Text.Json.JsonException">The body is not valid JSON.</exception>
+    /// <exception cref="System.Text.Json.JsonException">
+    /// The body is not valid JSON, or an element is not a SparkPost event.
+    /// </exception>
     public static IReadOnlyList<SparkPostEvent> Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
@@ -41,7 +51,9 @@ public static class SparkPostWebhookParser
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The events of the batch.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
-    /// <exception cref="System.Text.Json.JsonException">The body is not valid JSON.</exception>
+    /// <exception cref="System.Text.Json.JsonException">
+    /// The body is not valid JSON, or an element is not a SparkPost event.
+    /// </exception>
     /// <exception cref="IOException">Reading the stream failed.</exception>
     public static async Task<IReadOnlyList<SparkPostEvent>> ParseAsync(
         Stream stream,

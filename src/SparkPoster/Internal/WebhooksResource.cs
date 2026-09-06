@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
+using SparkPoster.Webhooks;
 
 namespace SparkPoster.Internal;
 
@@ -122,7 +123,7 @@ internal sealed class WebhooksResource : IWebhooks
         return await _requester.SendAndReadRawAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<JsonNode> GetEventSamplesAsync(
+    public async Task<IReadOnlyList<SparkPostEvent>> GetEventSamplesAsync(
         IEnumerable<string>? events = null,
         CancellationToken cancellationToken = default)
     {
@@ -131,6 +132,9 @@ internal sealed class WebhooksResource : IWebhooks
 
         using var request = _requester.CreateRequest(HttpMethod.Get, $"webhooks/events/samples{query}");
 
-        return await _requester.SendAndReadRawAsync(request, cancellationToken).ConfigureAwait(false);
+        var document = await _requester.SendAndReadDocumentAsync(request, cancellationToken).ConfigureAwait(false);
+
+        // The samples come in the exact shape of a webhook batch, msys wrapper included.
+        return SparkPostEventReader.Read(document["results"]);
     }
 }

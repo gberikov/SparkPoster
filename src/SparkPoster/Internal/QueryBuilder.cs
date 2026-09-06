@@ -9,6 +9,9 @@ internal sealed class QueryBuilder
 {
     private readonly StringBuilder _builder = new();
 
+    /// <summary>What list values are joined with. A comma unless the caller asked otherwise.</summary>
+    public string ListDelimiter { get; set; } = ",";
+
     public void Add(string name, string? value)
     {
         if (string.IsNullOrEmpty(value))
@@ -42,20 +45,20 @@ internal sealed class QueryBuilder
     {
         if (values is { Count: > 0 })
         {
-            Add(name, string.Join(',', values));
+            Add(name, string.Join(ListDelimiter, values));
         }
     }
 
     /// <summary>
-    /// The Events API expects <c>YYYY-MM-DDTHH:MM</c> and reads it in the account time zone unless
-    /// a separate <c>timezone</c> parameter says otherwise, so values are converted to UTC and the
-    /// caller declares the time zone once.
+    /// The Events API expects <c>YYYY-MM-DDTHH:MM:ssZ</c> in UTC — whole seconds and a literal
+    /// <c>Z</c>. Seconds matter: without them two boundaries a few seconds apart collapse into
+    /// the same minute.
     /// </summary>
-    public void AddTimestamp(string name, DateTimeOffset? value)
+    public void AddUtcTimestamp(string name, DateTimeOffset? value)
     {
         if (value is { } moment)
         {
-            Add(name, moment.UtcDateTime.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture));
+            Add(name, moment.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture));
         }
     }
 

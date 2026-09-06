@@ -6,6 +6,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Full official event samples; see OfficialSamplesTests for where they come from. -->
+    <Content Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\SparkPoster\SparkPoster.csproj" />
     <ProjectReference Include="..\..\src\SparkPoster.Extensions.DependencyInjection\SparkPoster.Extensions.DependencyInjection.csproj" />
     <ProjectReference Include="..\..\src\SparkPoster.AspNetCore\SparkPoster.AspNetCore.csproj" />

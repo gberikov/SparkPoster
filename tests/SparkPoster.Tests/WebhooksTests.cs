@@ -163,17 +163,18 @@ public sealed class WebhooksTests
     }
 
     [Fact]
-    public async Task Event_samples_are_returned_as_is()
+    public async Task Event_samples_are_parsed_like_a_batch()
     {
         var (client, handler) = CreateClient(
             HttpStatusCode.OK,
-            """{"results":[{"msys":{"message_event":{"type":"delivery"}}}]}""");
+            """{"results":[{"msys":{"message_event":{"type":"delivery","event_id":"1"}}}]}""");
 
         var samples = await client.Webhooks.GetEventSamplesAsync(
             [SparkPostEventTypes.Delivery, SparkPostEventTypes.Bounce],
             TestContext.Current.CancellationToken);
 
-        Assert.Equal("delivery", (string?)samples[0]!["msys"]!["message_event"]!["type"]);
+        var delivery = Assert.IsType<Webhooks.MessageEvent>(samples.Single());
+        Assert.Equal("delivery", delivery.Type);
         Assert.Equal(
             "https://api.sparkpost.com/api/v1/webhooks/events/samples?events=delivery%2Cbounce",
             handler.LastRequest!.RequestUri!.AbsoluteUri);

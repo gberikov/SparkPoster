@@ -76,6 +76,39 @@ public sealed class TransmissionsTests
         Assert.Equal("order-4815", handler.LastRequest!.Headers.GetValues("Idempotency-Key").Single());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("key\r\nX-Injected: yes")]
+    [InlineData("order 4815")]
+    [InlineData("order/4815")]
+    [InlineData("ключ")]
+    public async Task Invalid_idempotency_key_is_rejected_before_anything_is_sent(string key)
+    {
+        // The header goes out through TryAddWithoutValidation: a CR/LF in a key built from an
+        // unchecked business identifier would otherwise become a second header on the wire.
+        var (client, handler) = CreateClient(HttpStatusCode.OK, SuccessBody);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => client.Transmissions.SendAsync(BuildMinimal(), key, TestContext.Current.CancellationToken));
+
+        Assert.Equal("idempotencyKey", exception.ParamName);
+        Assert.Null(handler.LastRequest);
+    }
+
+    [Fact]
+    public async Task Idempotency_key_of_255_characters_is_accepted()
+    {
+        var (client, handler) = CreateClient(HttpStatusCode.OK, SuccessBody);
+        var key = new string('k', 255);
+
+        await client.Transmissions.SendAsync(BuildMinimal(), key, TestContext.Current.CancellationToken);
+
+        Assert.Equal(key, handler.LastRequest!.Headers.GetValues("Idempotency-Key").Single());
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => client.Transmissions.SendAsync(BuildMinimal(), key + "k", TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task Idempotent_replay_is_visible_in_the_result()
     {

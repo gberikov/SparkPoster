@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace SparkPoster.Tests;
 
 public sealed class TransmissionBuilderTests
@@ -86,5 +88,45 @@ public sealed class TransmissionBuilderTests
 
         Assert.Equal("vip", request.Recipients.Items!.Single().Tags!.Single());
         Assert.Equal("spring", request.Content.Headers!["X-Campaign"]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Headers_added_after_build_do_not_reach_the_built_request(bool withCc)
+    {
+        // Without CC the builder used to hand its own dictionary to the request; a request
+        // already on a queue then changed under the caller's feet.
+        var builder = Transmission.Create()
+            .From("noreply@example.com")
+            .To("user@example.com")
+            .Header("X-Test", "before")
+            .Html("<p>hi</p>");
+
+        if (withCc)
+        {
+            builder.Cc("copy@example.com");
+        }
+
+        var request = builder.Build();
+        builder.Header("X-Test", "after").Header("X-Late", "late");
+
+        Assert.Equal("before", request.Content.Headers!["X-Test"]);
+        Assert.False(request.Content.Headers.ContainsKey("X-Late"));
+    }
+
+    [Fact]
+    public void Substitution_data_and_metadata_accept_a_json_node()
+    {
+        var request = Transmission.Create()
+            .From("noreply@example.com")
+            .To("user@example.com")
+            .Html("<p>hi</p>")
+            .SubstitutionData(new JsonObject { ["name"] = "Wilma" })
+            .Metadata(new JsonObject { ["plan"] = "pro" })
+            .Build();
+
+        Assert.Equal("Wilma", (string?)request.SubstitutionData!["name"]);
+        Assert.Equal("pro", (string?)request.Metadata!["plan"]);
     }
 }

@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using SparkPoster.Internal;
+
 namespace SparkPoster;
 
 /// <summary>
@@ -39,6 +42,13 @@ public sealed record Template
 
     /// <summary>When the template was last changed.</summary>
     public DateTimeOffset? LastUpdateTime { get; init; }
+
+    /// <summary>When any version of the template last generated a message. Absent until it has.</summary>
+    public DateTimeOffset? LastUse { get; init; }
+
+    /// <summary>The subaccount the template belongs to. Absent for a primary-account template.</summary>
+    [JsonConverter(typeof(FlexibleStringJsonConverter))]
+    public string? SubaccountId { get; init; }
 }
 
 /// <summary>Creating or updating a template.</summary>
@@ -79,7 +89,13 @@ public sealed record TemplateRequest
 /// </remarks>
 public sealed record TemplateContent
 {
-    /// <summary>The sender.</summary>
+    /// <summary>
+    /// The sender. SparkPost stores it either as an object or as a plain string such as
+    /// <c>"{{ friendly_from }} &lt;team@example.com&gt;"</c>; a string is returned verbatim in
+    /// <see cref="Address.Email"/> with no <see cref="Address.Name"/>, and is written back as a
+    /// string, so a template expression survives a read-modify-write.
+    /// </summary>
+    [JsonConverter(typeof(TemplateFromJsonConverter))]
     public Address? From { get; init; }
 
     /// <summary>The subject line.</summary>

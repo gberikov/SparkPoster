@@ -45,6 +45,44 @@ public sealed class TemplatesTests
     }
 
     [Fact]
+    public async Task String_from_is_read_verbatim_and_written_back_as_a_string()
+    {
+        // The Template Object documents "from" as string or object; a template expression in
+        // the string must survive a read-modify-write untouched.
+        var (client, handler) = CreateClient(
+            """{"results":{"id":"welcome","content":{"from":"{{ friendly_from }} <team@example.com>","subject":"Hi","html":"<p>Hi</p>"}}}""");
+
+        var template = await client.Templates.GetAsync("welcome", cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal("{{ friendly_from }} <team@example.com>", template.Content!.From!.Email);
+        Assert.Null(template.Content.From.Name);
+
+        await client.Templates.UpdateAsync(
+            "welcome",
+            new TemplateRequest { Content = template.Content },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        AssertJson(
+            """{"content":{"from":"{{ friendly_from }} <team@example.com>","subject":"Hi","html":"<p>Hi</p>"}}""",
+            handler.LastBody!);
+    }
+
+    [Fact]
+    public async Task Template_error_carries_part_and_line()
+    {
+        var (client, _) = CreateClient(
+            """{"errors":[{"message":"substitution language syntax error in template content","code":"3000","description":"Error while compiling part html: line 4: syntax error near 'age'","part":"html","line":4}]}""",
+            HttpStatusCode.UnprocessableEntity);
+
+        var exception = await Assert.ThrowsAsync<SparkPostApiException>(
+            () => client.Templates.GetAsync("welcome", cancellationToken: TestContext.Current.CancellationToken));
+
+        var error = exception.Errors.Single();
+        Assert.Equal("html", error.Part);
+        Assert.Equal(4, error.Line);
+    }
+
+    [Fact]
     public async Task Get_requests_the_draft_when_asked()
     {
         var (client, handler) = CreateClient(

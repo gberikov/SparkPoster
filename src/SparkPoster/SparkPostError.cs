@@ -25,4 +25,13 @@ public sealed record SparkPostError
     /// <remarks>Arrives as a string or as a number, depending on the endpoint.</remarks>
     [JsonConverter(typeof(FlexibleStringJsonConverter))]
     public string? Code { get; init; }
+
+    /// <summary>
+    /// For a template error, the content section it occurred in: <c>text</c>, <c>html</c>,
+    /// <c>amp_html</c> or <c>Header:Subject</c>.
+    /// </summary>
+    public string? Part { get; init; }
+
+    /// <summary>For a template error, the line number within <see cref="Part"/>.</summary>
+    public int? Line { get; init; }
 }

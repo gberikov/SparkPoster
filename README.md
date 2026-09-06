@@ -42,7 +42,19 @@ That constructor is for console applications, scripts and tests: it uses one sha
 `HttpClient` for the process. Inside a host, register the client instead — see below.
 
 The builder never sends anything: `Build()` hands back a serializable `TransmissionRequest`,
-so a message can be assembled now, queued, and sent later.
+so a message can be assembled now, queued, and sent later. When you do queue it, store the
+idempotency key next to it — a key derived from your own identifier, such as the order number —
+and pass that key to every attempt at sending; a request replayed from the queue then cannot
+send the message twice.
+
+`SubstitutionData(new { name = "Bob" })` serializes with reflection, which trimmed and Native
+AOT builds do not have. Both have two alternatives: a `JsonNode` needs no serializer context at
+all, and a `JsonTypeInfo<T>` from your own source-generated context handles a real model:
+
+```csharp
+.SubstitutionData(new JsonObject { ["name"] = "Bob" })
+.SubstitutionData(model, MyJsonContext.Default.WelcomeModel)
+```
 
 Content can be given in any one of the four forms SparkPost supports — inline, a stored
 template, an A/B test, or raw RFC822 — and mixing them is caught in `Build()`:
@@ -82,14 +94,35 @@ later, as SparkPost's 401 to a request that carried an empty `Authorization` hea
 `AddSparkPost` returns the `IHttpClientBuilder`, so retries, timeouts and circuit breaking
 are configured with the standard Microsoft handler rather than a home-grown one.
 
-**Retries are safe by construction.** Every send carries an `Idempotency-Key` header, generated
-automatically unless you pass your own. A retry inside a `DelegatingHandler` replays the very
-same request with the very same key, and SparkPost returns the original result instead of
-sending a second message — `IsIdempotentReplay` tells the two apart. When your own code
-retries a send, pass a key derived from a business identifier:
+**Retrying a send is safe by construction.** Every transmission carries an `Idempotency-Key`
+header, generated automatically unless you pass your own. A retry inside a `DelegatingHandler`
+replays the very same request with the very same key, and SparkPost returns the original result
+instead of sending a second message — `IsIdempotentReplay` tells the two apart. When your own
+code retries a send, pass a key derived from a business identifier:
 
 ```csharp
 await client.Transmissions.SendAsync(transmission, idempotencyKey: $"order-{orderId}", ct);
+```
+
+The key must match `^[A-Za-z0-9._-]{1,255}$`; anything else is rejected before the request is
+built, so hash or encode an identifier that carries other characters.
+
+**Other writes are not covered.** Creating a webhook, a template or a sending domain has no
+idempotency key, and the standard handler retries every method by default: a lost response
+followed by a retry creates the webhook twice, or fails the template with a conflict. If that
+matters, either give such resources explicit identifiers and treat a conflict as success, or
+keep the retries to what is safe — reads, and sends:
+
+```csharp
+.AddStandardResilienceHandler(options =>
+{
+    var isTransient = options.Retry.ShouldHandle;
+    options.Retry.ShouldHandle = args =>
+        args.Context.GetRequestMessage() is { Method: { Method: "POST" } } request
+            && !request.RequestUri!.AbsolutePath.EndsWith("/transmissions", StringComparison.Ordinal)
+            ? ValueTask.FromResult(false)
+            : isTransient(args);
+});
 ```
 
 ## Subaccounts
@@ -154,6 +187,20 @@ Three things about webhook delivery that the design of this API forces on you:
 - **Ten seconds.** That is how long SparkPost waits for your response. If processing takes
   longer, queue the batch — but then its safekeeping is yours, not SparkPost's.
 
+Every event SparkPost documents lands in a typed record: `MessageEvent`, `TrackEvent`,
+`GenerationEvent`, `UnsubscribeEvent`, `RelayEvent`, `AbTestEvent`, `IngestEvent`. Fields that
+several categories share — recipient, tracking flags, injection time, failure reason — sit on
+the `SparkPostEvent` base, so a handler can deduplicate and log without a type switch. Anything
+not typed stays in `Extra`.
+
+An event the library cannot type arrives as `UnknownSparkPostEvent` and never throws — a new
+category must not make you answer 500 and have the whole batch resent. Its common fields are
+still filled in, `Raw` holds the payload, and `ParseError` tells a genuinely new category
+(`null`) apart from a known one whose body did not fit the model (the reason). Store such
+events, or at least their `Raw`, rather than dropping them; once the library learns the type,
+they can be reprocessed. A body that is not a SparkPost batch at all — no `msys` wrapper — is
+answered 400.
+
 ## Events
 
 Two ways to read them, because two different jobs need them:
@@ -187,6 +234,12 @@ var domain = await client.SendingDomains.CreateAsync(new SendingDomainRequest { 
 var status = await client.SendingDomains.VerifyAsync("example.com", cancellationToken: ct);
 ```
 
+`Templates.UpdateAsync` replaces `content` as a whole when it is given — SparkPost does not
+patch individual fields — so send every field you want to keep, or leave `Content` null to
+change only the name, description or options. A template's `from` may come back as a string
+such as `"{{ friendly_from }} <team@example.com>"`; it is kept verbatim in `From.Email` and
+written back as a string, so the expression survives a read-modify-write.
+
 ## Errors
 
 Everything non-2xx becomes a `SparkPostApiException` carrying `StatusCode`, the parsed
@@ -213,7 +266,10 @@ catch (SparkPostApiException e) when (e.StatusCode == HttpStatusCode.Unprocessab
   `WebhookAuthCredentials`, `WebhookAuthRequestDetails`, `DkimSettings` and `Attachment` override
   that — a webhook read back from the API can otherwise carry its own password into your logs.
 - **`SparkPostApiException.RawBody` can hold personal data** — validation errors echo recipient
-  addresses back. Think before dumping it into logs.
+  addresses back, and `Message` carries the first error's description verbatim. Think before
+  dumping either into logs.
+- **`BaseUrl` must be `https://`.** The key travels in a header; the client refuses a plain
+  `http://` base unless it points at a loopback address, which is what a local stub needs.
 
 ## What is covered
 
@@ -221,15 +277,17 @@ catch (SparkPostApiException e) when (e.StatusCode == HttpStatusCode.Unprocessab
 |---|---|
 | Transmissions | Send (all four content forms), attachments, inline images, CC/BCC, scheduling, stored recipient lists, cancel by campaign |
 | Event webhooks | CRUD, validate, batch status, event documentation and samples |
-| Webhook receiving | Typed events for all five categories, unknown types preserved, ASP.NET Core endpoint |
-| Events | Cursor paging and lazy enumeration, the full documented filter set |
+| Webhook receiving | Typed events for all seven categories, unknown types preserved with their common fields, ASP.NET Core endpoint |
+| Events | Message events: cursor paging and lazy enumeration, every documented filter. Ingest event search: not yet |
 | Templates | CRUD, drafts and publishing, preview |
 | Suppression list | Upsert, bulk upsert, search, delete, summary |
 | Sending domains | CRUD and verification |
 | Metrics, A/B testing, snippets, recipient lists, subaccounts, API keys, IP pools, sending IPs, inbound domains, relay webhooks, tracking domains, DKIM keys, data privacy | Not yet |
 
 Unknown fields are never dropped: every event exposes them through `Extra`, and unknown event
-types arrive as `UnknownSparkPostEvent` rather than breaking the batch.
+types arrive as `UnknownSparkPostEvent` rather than breaking the batch. Every official sample
+event — 27 webhook, 18 Events API — is checked in as a fixture and has to parse into its typed
+model; the SMS-specific fields of `sms_status` are the one thing left in `Extra` on purpose.
 
 ## Requirements
 

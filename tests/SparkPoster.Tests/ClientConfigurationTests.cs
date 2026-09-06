@@ -39,6 +39,20 @@ public sealed class ClientConfigurationTests
     }
 
     [Fact]
+    public void Plain_http_base_url_is_rejected_unless_loopback()
+    {
+        // The key travels in a header; over http:// every hop can read it. A local stub is the
+        // one legitimate case, and it is spelled out rather than hidden behind a flag.
+        var http = new SparkPostOptions { ApiKey = "key", BaseUrl = new Uri("http://api.example/api/v1/") };
+        var loopback = new SparkPostOptions { ApiKey = "key", BaseUrl = new Uri("http://localhost:5000/api/v1/") };
+
+        var exception = Assert.Throws<ArgumentException>(() => new SparkPostClient(http));
+        Assert.Contains("https://", exception.Message, StringComparison.Ordinal);
+
+        _ = new SparkPostClient(loopback);
+    }
+
+    [Fact]
     public void Relative_base_url_is_rejected()
     {
         // "SparkPost:BaseUrl": "api/v1" in appsettings would otherwise reach the first request

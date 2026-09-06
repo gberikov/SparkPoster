@@ -109,13 +109,17 @@ public interface IWebhooks
     /// </remarks>
     Task<JsonNode> GetEventsDocumentationAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Returns sample events as raw JSON.</summary>
+    /// <summary>Returns one sample event per type, parsed the way a webhook batch is.</summary>
     /// <param name="events">The event types; all of them when omitted.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>Sample events — handy as fixtures for testing your own handler.</returns>
+    /// <returns>
+    /// Sample events — handy as fixtures for testing your own handler. A sample that this
+    /// library cannot type arrives as an <see cref="Webhooks.UnknownSparkPostEvent"/>, whose
+    /// <see cref="Webhooks.UnknownSparkPostEvent.Raw"/> still holds the JSON.
+    /// </returns>
     /// <exception cref="SparkPostApiException">One of the requested event types is unknown (400).</exception>
     /// <exception cref="SparkPostRateLimitException">The request limit was exceeded (429).</exception>
-    Task<JsonNode> GetEventSamplesAsync(
+    Task<IReadOnlyList<Webhooks.SparkPostEvent>> GetEventSamplesAsync(
         IEnumerable<string>? events = null,
         CancellationToken cancellationToken = default);
 }
