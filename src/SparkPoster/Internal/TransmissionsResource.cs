@@ -23,6 +23,14 @@ internal sealed class TransmissionsResource : ITransmissions
     {
         ArgumentNullException.ThrowIfNull(transmission);
 
+        if (idempotencyKey is not null && !IsValidIdempotencyKey(idempotencyKey))
+        {
+            throw new ArgumentException(
+                "The idempotency key must be 1 to 255 characters from [A-Za-z0-9._-]. "
+                + "Hash or encode a business identifier that contains anything else.",
+                nameof(idempotencyKey));
+        }
+
         using var request = _requester.CreateRequest(HttpMethod.Post, "transmissions");
         request.Content = JsonContent.Create(transmission, SparkPostJsonContext.Default.TransmissionRequest);
 
@@ -53,6 +61,15 @@ internal sealed class TransmissionsResource : ITransmissions
 
         using var response = await _requester.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// The documented contract is <c>^[A-Za-z0-9._-]{1,255}$</c>. Checked here rather than left to
+    /// the server: the header goes out through <c>TryAddWithoutValidation</c>, so a key built from
+    /// an unchecked business identifier could otherwise carry a CR/LF and inject a header.
+    /// </summary>
+    private static bool IsValidIdempotencyKey(string key) =>
+        key.Length is >= 1 and <= 255
+        && key.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-');
 
     private static bool IsReplay(HttpResponseMessage response)
     {
