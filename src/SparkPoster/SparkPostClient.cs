@@ -166,5 +166,16 @@ public sealed class SparkPostClient : ISparkPostClient
                 "SparkPostOptions.BaseUrl must be an absolute URI, for example https://api.sparkpost.com/api/v1/.",
                 nameof(options));
         }
+
+        // The API key travels in a header: over plain HTTP it is readable by every hop on the way.
+        // Loopback is the one exception — a local stub or proxy — and the exception is spelled out
+        // rather than left to a flag that would get set once and forgotten.
+        if (options.BaseUrl.Scheme == Uri.UriSchemeHttp && !options.BaseUrl.IsLoopback)
+        {
+            throw new ArgumentException(
+                "SparkPostOptions.BaseUrl uses plain HTTP, which would send the API key in clear text. "
+                + "Use https://; http:// is only accepted for a loopback address such as http://localhost.",
+                nameof(options));
+        }
     }
 }

@@ -48,7 +48,8 @@ public class SparkPostApiException : SparkPostException
     /// </summary>
     /// <remarks>
     /// May contain personal data: validation errors echo recipient addresses back.
-    /// Think before dumping this into your logs.
+    /// Think before dumping this into your logs. The same goes for <see cref="Exception.Message"/>,
+    /// which carries the first error's description verbatim.
     /// </remarks>
     public string? RawBody { get; }
 
