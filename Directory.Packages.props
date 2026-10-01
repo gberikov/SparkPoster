@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <!-- Versioning from git tags. -->
-    <PackageVersion Include="MinVer" Version="7.0.0" />
+    <PackageVersion Include="MinVer" Version="8.0.0" />
 
     <!-- The DI package: IHttpClientFactory. 8.0.x rather than 10.x because the library
          targets net8.0 and there is no reason to drag a newer Microsoft.Extensions line
