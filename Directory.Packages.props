@@ -18,7 +18,7 @@
 
     <!-- Tests. FluentAssertions is deliberately absent: since version 8 it is paid for
          commercial use, and plain Assert is enough. -->
-    <PackageVersion Include="xunit.v3" Version="4.0.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.1" />
 
     <!-- Webhook endpoint coverage: the 200/401/500 statuses and the secret comparison
          cannot be verified any other way. -->
